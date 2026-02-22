@@ -1,9 +1,11 @@
+import { memo } from 'react';
+
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
   inverted?: boolean;
 }
 
-export default function Logo({ size = 'md', inverted = false }: LogoProps) {
+export default memo(function Logo({ size = 'md', inverted = false }: LogoProps) {
   const sizes = { sm: 28, md: 38, lg: 56 };
   const textSizes = { sm: 'text-lg', md: 'text-2xl', lg: 'text-4xl' };
   const svgSize = sizes[size];
@@ -74,4 +76,4 @@ export default function Logo({ size = 'md', inverted = false }: LogoProps) {
       </div>
     </div>
   );
-}
+});

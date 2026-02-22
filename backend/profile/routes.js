@@ -9,62 +9,45 @@ import {
   removeFromWishlist,
   getRecentlyBought,
   getMyOrders,
- 
+  syncCart,
 } from "./controller.js";
-import UserProfile from "./models.js";
 
+import UserProfile from "./models.js";
 import { updateUserProfileSchema } from "./schema.js";
 
 const router = express.Router();
 
 /*
-  PROFILE
-  Base: /api/users
+  BASE: /api/v1/user
 */
 
-// GET /api/users
+// PROFILE
 router.get("/", protect, getProfile);
-
-// PUT /api/users
-router.put(
-  "/",
-  protect,
-  validate(updateUserProfileSchema),
-  updateProfile
-);
-
-// DELETE /api/users
+router.put("/", protect, validate(updateUserProfileSchema), updateProfile);
 router.delete("/", protect, async (req, res) => {
-  await UserProfile.findByIdAndDelete(req.user._id);
+  const deleted = await UserProfile.findByIdAndDelete(req.user._id);
+  if (!deleted) {
+    return res.status(404).json({ success: false, message: "User not found" });
+  }
   res.json({ success: true, message: "Account deleted" });
 });
 
-/*
-  WISHLIST
-*/
-
-// GET /api/users/wishlist
+// WISHLIST
 router.get("/wishlist", protect, async (req, res) => {
-  const user = await UserProfile.findById(req.user._id)
-    .populate("wishlist");
+  const user = await UserProfile.findById(req.user._id).populate("wishlist");
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found" });
+  }
   res.json({ success: true, data: user.wishlist });
 });
-
-// POST /api/users/wishlist
 router.post("/wishlist", protect, addToWishlist);
-
-// DELETE /api/users/wishlist/:productId
 router.delete("/wishlist/:productId", protect, removeFromWishlist);
 
-/*
-  ORDERS
-*/
-
-// GET /api/users/orders
+// ORDERS
 router.get("/orders", protect, getMyOrders);
-
-
-// GET /api/users/recent
 router.get("/recent", protect, getRecentlyBought);
+
+// CART
+router.post("/cart", protect, syncCart);
 
 export default router;

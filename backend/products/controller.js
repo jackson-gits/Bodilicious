@@ -37,7 +37,7 @@ export const getAllProducts = async (req, res) => {
       minPrice,
       maxPrice,
       page = 1,
-      limit = 10,
+      limit = 0,
     } = req.query;
 
     const query = { isActive: true };
@@ -56,7 +56,7 @@ export const getAllProducts = async (req, res) => {
       if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
+    const skip = limit ? (Number(page) - 1) * Number(limit) : 0;
 
     const [products, total] = await Promise.all([
       Product.find(query)
@@ -71,7 +71,7 @@ export const getAllProducts = async (req, res) => {
       success: true,
       total,
       page: Number(page),
-      totalPages: Math.ceil(total / Number(limit)),
+      totalPages: limit ? Math.ceil(total / Number(limit)) : 1,
       data: products,
     });
   } catch (err) {

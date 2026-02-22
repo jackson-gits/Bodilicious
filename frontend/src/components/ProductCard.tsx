@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { Product } from '../types';
 import { useApp } from '../context/AppContext';
@@ -7,7 +8,7 @@ interface ProductCardProps {
   product: Product;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default memo(function ProductCard({ product }: ProductCardProps) {
   const { navigateTo, addToCart, toggleWishlist, isInWishlist } = useApp();
   const inWishlist = isInWishlist(product.pid);
 
@@ -29,11 +30,10 @@ export default function ProductCard({ product }: ProductCardProps) {
             e.stopPropagation();
             toggleWishlist(product);
           }}
-          className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${
-            inWishlist
+          className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${inWishlist
               ? 'bg-ruby-red text-white shadow-md'
               : 'bg-white/90 text-dark-red/50 hover:text-ruby-red hover:bg-white shadow-sm'
-          }`}
+            }`}
         >
           <Heart size={15} fill={inWishlist ? 'currentColor' : 'none'} />
         </button>
@@ -83,4 +83,4 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
     </div>
   );
-}
+});

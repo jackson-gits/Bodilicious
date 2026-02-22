@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import ProductPage from './pages/ProductPage';
+import SignInPage from './pages/SignInPage';
 import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
 import AccountPage from './pages/AccountPage';
@@ -14,6 +15,7 @@ function PageRouter() {
     home: <HomePage />,
     shop: <ShopPage />,
     product: <ProductPage />,
+    signin: <SignInPage />,
     cart: <CartPage />,
     wishlist: <WishlistPage />,
     account: <AccountPage />,

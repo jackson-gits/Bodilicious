@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ShoppingBag, Heart, User, Menu, X, Search } from 'lucide-react';
 import Logo from './Logo';
 import { useApp } from '../context/AppContext';
 
+const NAV_LINKS = [
+  { label: 'Home', page: 'home' as const },
+  { label: 'Shop All', page: 'shop' as const, filter: 'all' as const },
+  { label: 'Skin Care', page: 'shop' as const, filter: 'skin' as const },
+  { label: 'Hair Care', page: 'shop' as const, filter: 'hair' as const },
+];
+
 export default function Navbar() {
-  const { navigateTo, cartCount, wishlist, currentPage } = useApp();
+  const { navigateTo, cartCount, wishlist, currentPage, authStatus, setShopFilter } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -14,28 +21,18 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const navLinks = [
-    { label: 'Home', page: 'home' as const },
-    { label: 'Shop All', page: 'shop' as const, filter: 'all' as const },
-    { label: 'Skin Care', page: 'shop' as const, filter: 'skin' as const },
-    { label: 'Hair Care', page: 'shop' as const, filter: 'hair' as const },
-  ];
-
-  const { setShopFilter } = useApp();
-
-  const handleNav = (page: 'home' | 'shop', filter?: 'all' | 'skin' | 'hair' | 'other') => {
+  const handleNav = useCallback((page: 'home' | 'shop', filter?: 'all' | 'skin' | 'hair' | 'other') => {
     if (filter) setShopFilter(filter);
     navigateTo(page);
     setMenuOpen(false);
-  };
+  }, [navigateTo, setShopFilter]);
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled || menuOpen
-          ? 'bg-white shadow-sm border-b border-silk'
-          : 'bg-white/95 backdrop-blur-sm'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled || menuOpen
+        ? 'bg-white shadow-sm border-b border-silk'
+        : 'bg-white/95 backdrop-blur-sm'
+        }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 md:h-20">
@@ -44,15 +41,14 @@ export default function Navbar() {
           </button>
 
           <div className="hidden md:flex items-center gap-8">
-            {navLinks.map(link => (
+            {NAV_LINKS.map(link => (
               <button
                 key={link.label}
                 onClick={() => handleNav(link.page, link.filter)}
-                className={`text-sm font-sans tracking-widest uppercase transition-colors duration-200 ${
-                  currentPage === link.page
-                    ? 'text-ruby-red'
-                    : 'text-dark-red/70 hover:text-dark-red'
-                }`}
+                className={`text-sm font-sans tracking-widest uppercase transition-colors duration-200 ${currentPage === link.page
+                  ? 'text-ruby-red'
+                  : 'text-dark-red/70 hover:text-dark-red'
+                  }`}
               >
                 {link.label}
               </button>
@@ -74,12 +70,17 @@ export default function Navbar() {
                 </span>
               )}
             </button>
-            <button
-              onClick={() => navigateTo('account')}
-              className="text-dark-red/60 hover:text-dark-red transition-colors"
-            >
-              <User size={18} />
-            </button>
+            {authStatus === 'loading' ? (
+              <div className="w-[18px] h-[18px] rounded-full border-2 border-dark-red/20 border-t-dark-red/60 animate-spin" />
+            ) : (
+              <button
+                onClick={() => navigateTo(authStatus === 'authenticated' ? 'account' : 'signin')}
+                className="text-dark-red/60 hover:text-dark-red transition-colors"
+                title={authStatus === 'authenticated' ? 'My Account' : 'Sign In'}
+              >
+                <User size={18} />
+              </button>
+            )}
             <button
               onClick={() => navigateTo('cart')}
               className="relative text-dark-red/60 hover:text-dark-red transition-colors"
@@ -103,7 +104,7 @@ export default function Navbar() {
 
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-silk px-6 py-4 space-y-3">
-          {navLinks.map(link => (
+          {NAV_LINKS.map(link => (
             <button
               key={link.label}
               onClick={() => handleNav(link.page, link.filter)}

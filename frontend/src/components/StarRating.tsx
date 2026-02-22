@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Star } from 'lucide-react';
 
 interface StarRatingProps {
@@ -6,7 +7,7 @@ interface StarRatingProps {
   size?: number;
 }
 
-export default function StarRating({ rating, count, size = 14 }: StarRatingProps) {
+export default memo(function StarRating({ rating, count, size = 14 }: StarRatingProps) {
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex items-center">
@@ -28,4 +29,4 @@ export default function StarRating({ rating, count, size = 14 }: StarRatingProps
       </span>
     </div>
   );
-}
+});

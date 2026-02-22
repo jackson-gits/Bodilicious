@@ -33,4 +33,14 @@ export type Page =
   | 'product'
   | 'cart'
   | 'wishlist'
-  | 'account';
+  | 'account'
+  | 'signin';
+
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+
+export interface User {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}

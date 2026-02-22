@@ -1,23 +1,71 @@
-import { ArrowRight, Leaf, Shield, Sparkles, ChevronRight } from 'lucide-react';
+import { ArrowRight, Leaf, Shield, Sparkles, ChevronRight, Loader2 } from 'lucide-react';
+import { useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
-import { sampleProducts } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import Footer from '../components/Footer';
 import StarRating from '../components/StarRating';
 
-const bestSellers = sampleProducts.filter((_, i) => [0, 1, 2, 4].includes(i));
+const SHOP_CATEGORIES = [
+  {
+    label: 'Skin Care',
+    filter: 'skin' as const,
+    img: 'https://images.pexels.com/photos/3762879/pexels-photo-3762879.jpeg?auto=compress&cs=tinysrgb&w=600',
+    desc: 'Serums, oils & cleansers for radiant skin',
+  },
+  {
+    label: 'Hair Care',
+    filter: 'hair' as const,
+    img: 'https://images.pexels.com/photos/3735657/pexels-photo-3735657.jpeg?auto=compress&cs=tinysrgb&w=600',
+    desc: 'Oils & serums for lustrous, healthy hair',
+  },
+  {
+    label: 'Body Care',
+    filter: 'other' as const,
+    img: 'https://images.pexels.com/photos/6621461/pexels-photo-6621461.jpeg?auto=compress&cs=tinysrgb&w=600',
+    desc: 'Butters & treatments for glowing skin',
+  },
+];
 
-const reviews = sampleProducts
-  .flatMap(p => p.reviews.map(r => ({ ...r, productName: p.name })))
-  .slice(0, 3);
+const PROMISES = [
+  {
+    Icon: Leaf,
+    title: 'Clean Ingredients',
+    desc: 'Every formula is free from harmful chemicals. We use only ethically sourced, plant-based ingredients proven effective by science.',
+  },
+  {
+    Icon: Shield,
+    title: 'Dermatologically Inspired',
+    desc: 'Developed with guidance from dermatologists and Ayurvedic practitioners for formulas that truly work on Indian skin.',
+  },
+  {
+    Icon: Sparkles,
+    title: 'Herbal & Effective',
+    desc: 'Ancient Indian herbs, time-tested for centuries, now formulated with modern science for visible, lasting results.',
+  },
+];
 
 export default function HomePage() {
-  const { navigateTo, setShopFilter } = useApp();
+  const { navigateTo, setShopFilter, products, isLoading } = useApp();
 
-  const handleShop = (filter: 'all' | 'skin' | 'hair' | 'other') => {
+  const handleShop = useCallback((filter: 'all' | 'skin' | 'hair' | 'other') => {
     setShopFilter(filter);
     navigateTo('shop');
-  };
+  }, [navigateTo, setShopFilter]);
+
+  const bestSellers = useMemo(() => products.filter((_, i) => [0, 1, 2, 4].includes(i)), [products]);
+
+  const reviews = useMemo(() => products
+    .flatMap(p => p.reviews.map(r => ({ ...r, productName: p.name })))
+    .slice(0, 3), [products]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-dark-red animate-spin mb-4" />
+        <p className="text-dark-red font-sans text-sm uppercase tracking-widest">Loading Bodilicious...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white">
@@ -98,26 +146,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                label: 'Skin Care',
-                filter: 'skin' as const,
-                img: 'https://images.pexels.com/photos/3762879/pexels-photo-3762879.jpeg?auto=compress&cs=tinysrgb&w=600',
-                desc: 'Serums, oils & cleansers for radiant skin',
-              },
-              {
-                label: 'Hair Care',
-                filter: 'hair' as const,
-                img: 'https://images.pexels.com/photos/3735657/pexels-photo-3735657.jpeg?auto=compress&cs=tinysrgb&w=600',
-                desc: 'Oils & serums for lustrous, healthy hair',
-              },
-              {
-                label: 'Body Care',
-                filter: 'other' as const,
-                img: 'https://images.pexels.com/photos/6621461/pexels-photo-6621461.jpeg?auto=compress&cs=tinysrgb&w=600',
-                desc: 'Butters & treatments for glowing skin',
-              },
-            ].map(cat => (
+            {SHOP_CATEGORIES.map(cat => (
               <button
                 key={cat.filter}
                 onClick={() => handleShop(cat.filter)}
@@ -152,23 +181,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {[
-              {
-                Icon: Leaf,
-                title: 'Clean Ingredients',
-                desc: 'Every formula is free from harmful chemicals. We use only ethically sourced, plant-based ingredients proven effective by science.',
-              },
-              {
-                Icon: Shield,
-                title: 'Dermatologically Inspired',
-                desc: 'Developed with guidance from dermatologists and Ayurvedic practitioners for formulas that truly work on Indian skin.',
-              },
-              {
-                Icon: Sparkles,
-                title: 'Herbal & Effective',
-                desc: 'Ancient Indian herbs, time-tested for centuries, now formulated with modern science for visible, lasting results.',
-              },
-            ].map(({ Icon, title, desc }) => (
+            {PROMISES.map(({ Icon, title, desc }) => (
               <div key={title} className="text-center">
                 <div className="w-14 h-14 rounded-full bg-ruby-red/20 border border-ruby-red/30 flex items-center justify-center mx-auto mb-6">
                   <Icon size={22} className="text-indian-red" />

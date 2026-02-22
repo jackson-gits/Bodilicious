@@ -1,5 +1,5 @@
+import { Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { sampleProducts } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import Footer from '../components/Footer';
 
@@ -11,12 +11,21 @@ const categories = [
 ] as const;
 
 export default function ShopPage() {
-  const { shopFilter, setShopFilter } = useApp();
+  const { shopFilter, setShopFilter, products, isLoading } = useApp();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-dark-red animate-spin mb-4" />
+        <p className="text-dark-red font-sans text-sm uppercase tracking-widest">Loading Bodilicious...</p>
+      </div>
+    );
+  }
 
   const filtered =
     shopFilter === 'all'
-      ? sampleProducts
-      : sampleProducts.filter(p => p.type === shopFilter);
+      ? products
+      : products.filter(p => p.type === shopFilter);
 
   return (
     <div className="bg-white min-h-screen">
@@ -37,11 +46,10 @@ export default function ShopPage() {
             <button
               key={cat.value}
               onClick={() => setShopFilter(cat.value)}
-              className={`px-5 py-2 text-xs font-sans tracking-widest uppercase transition-all duration-200 border ${
-                shopFilter === cat.value
+              className={`px-5 py-2 text-xs font-sans tracking-widest uppercase transition-all duration-200 border ${shopFilter === cat.value
                   ? 'bg-dark-red text-silk border-dark-red'
                   : 'bg-white text-dark-red/60 border-silk hover:border-dark-red hover:text-dark-red'
-              }`}
+                }`}
             >
               {cat.label}
             </button>

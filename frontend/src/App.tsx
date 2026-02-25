@@ -7,6 +7,8 @@ import SignInPage from './pages/SignInPage';
 import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
 import AccountPage from './pages/AccountPage';
+import TrackingPage from './pages/TrackingPage';
+import Chatbot from './components/Chatbot';
 
 function PageRouter() {
   const { currentPage } = useApp();
@@ -19,6 +21,7 @@ function PageRouter() {
     cart: <CartPage />,
     wishlist: <WishlistPage />,
     account: <AccountPage />,
+    tracking: <TrackingPage />,
   };
 
   return (
@@ -33,6 +36,7 @@ export default function App() {
   return (
     <AppProvider>
       <PageRouter />
+      <Chatbot />
     </AppProvider>
   );
 }

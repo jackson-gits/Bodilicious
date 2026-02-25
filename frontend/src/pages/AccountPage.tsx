@@ -53,7 +53,7 @@ export default function AccountPage() {
               title: 'My Orders',
               desc: authStatus === 'authenticated' ? `${orders.length} order${orders.length !== 1 ? 's' : ''}` : 'Track and manage your orders',
               count: authStatus === 'authenticated' ? orders.length : null,
-              action: () => { },
+              action: () => navigateTo('tracking'),
             },
             {
               Icon: Heart,

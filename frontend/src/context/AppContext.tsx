@@ -18,6 +18,10 @@ import {
 import { auth, googleProvider } from '../firebase';
 import { CartItem, Product, Page, User, AuthStatus } from '../types';
 
+/* ================================
+   Types
+================================ */
+
 export interface Order {
   _id: string;
   items: { product: Product; quantity: number }[];
@@ -69,13 +73,19 @@ const AppContext = createContext<AppContextType | null>(null);
 const API_BASE = 'http://localhost:5000/api/v1';
 const USER_BASE = `${API_BASE}/user`;
 
+/* ================================
+   Provider
+================================ */
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [selectedProductPid, setSelectedProductPid] = useState<string | null>(null);
+  const [selectedProductPid, setSelectedProductPid] = useState<string | null>(
+    null
+  );
   const [shopFilter, setShopFilter] =
     useState<'all' | 'skin' | 'hair' | 'other'>('all');
 
@@ -87,9 +97,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
 
-  // =============================
-  // Auth Headers
-  // =============================
+  /* =============================
+     Auth headers
+  ============================== */
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
 
@@ -101,30 +111,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return headers;
   }, []);
 
-  // =============================
-  // Profile Sync
-  // =============================
+  /* =============================
+     Profile sync
+  ============================== */
   const fetchUserProfileAndSync = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
       const res = await fetch(USER_BASE, { headers });
 
-      if (!res.ok) throw new Error('Failed to fetch profile');
+      if (!res.ok) throw new Error('Profile fetch failed');
 
       const { data } = await res.json();
 
-      setWishlist(data.wishlist || []);
-      setCartItems(data.cart || []);
-      setOrders(data.orders || []);
-      setRecentlyBought(data.recentlyBought || []);
+      setWishlist(data?.wishlist ?? []);
+      setCartItems(data?.cart ?? []);
+      setOrders(data?.orders ?? []);
+      setRecentlyBought(data?.recentlyBought ?? []);
     } catch (err) {
       console.error('Profile sync failed', err);
     }
   }, [getAuthHeaders]);
 
-  // =============================
-  // Firebase Auth Listener
-  // =============================
+  /* =============================
+     Firebase auth listener
+  ============================== */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async currUser => {
       if (currUser) {
@@ -151,9 +161,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [fetchUserProfileAndSync]);
 
-  // =============================
-  // Auth Actions
-  // =============================
+  /* =============================
+     Auth actions
+  ============================== */
   const signInWithGoogle = async () => {
     await signInWithPopup(auth, googleProvider);
     navigateTo('home');
@@ -164,9 +174,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     navigateTo('home');
   };
 
-  const signUpWithEmail = async (e: string, p: string, name: string) => {
+  const signUpWithEmail = async (e: string, p: string, n: string) => {
     const cred = await createUserWithEmailAndPassword(auth, e, p);
-    await updateProfile(cred.user, { displayName: name });
+    await updateProfile(cred.user, { displayName: n });
     navigateTo('home');
   };
 
@@ -175,15 +185,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     navigateTo('home');
   };
 
-  // =============================
-  // Products
-  // =============================
+  /* =============================
+     Products
+  ============================== */
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch(`${API_BASE}/products/all`);
         const json = await res.json();
-        setProducts(json.data || []);
+        setProducts(json?.data ?? []);
       } catch {
         setError('Failed to load products');
       } finally {
@@ -192,18 +202,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // =============================
-  // Navigation
-  // =============================
+  /* =============================
+     Navigation
+  ============================== */
   const navigateTo = (page: Page, pid?: string) => {
     setCurrentPage(page);
     setSelectedProductPid(pid ?? null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // =============================
-  // Cart
-  // =============================
+  /* =============================
+     Cart helpers
+  ============================== */
   const syncCartToBackend = async (newCart: CartItem[]) => {
     if (authStatus !== 'authenticated') return;
 
@@ -212,32 +222,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        cartItems: newCart.map(i => ({
-          productId: (i.product as any)._id,
-          quantity: i.quantity,
-        })),
+        cartItems: newCart
+          .filter(i => i.product && (i.product as any)._id)
+          .map(i => ({
+            productId: (i.product as any)._id,
+            quantity: i.quantity,
+          })),
       }),
     });
   };
 
   const addToCart = (product: Product) => {
+    if (!product) return;
+
     let nextCart: CartItem[] = [];
     setCartItems(prev => {
       nextCart = [...prev];
-      const idx = nextCart.findIndex(i => i.product.pid === product.pid);
+      const idx = nextCart.findIndex(
+        i => i.product && i.product.pid === product.pid
+      );
 
       if (idx >= 0) nextCart[idx].quantity++;
       else nextCart.push({ product, quantity: 1 });
 
       return nextCart;
     });
+
     setTimeout(() => syncCartToBackend(nextCart), 0);
   };
 
   const removeFromCart = (pid: string) => {
     let nextCart: CartItem[] = [];
     setCartItems(prev => {
-      nextCart = prev.filter(i => i.product.pid !== pid);
+      nextCart = prev.filter(i => i.product && i.product.pid !== pid);
       return nextCart;
     });
     setTimeout(() => syncCartToBackend(nextCart), 0);
@@ -247,16 +264,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let nextCart: CartItem[] = [];
     setCartItems(prev => {
       nextCart = prev.map(i =>
-        i.product.pid === pid ? { ...i, quantity: qty } : i
+        i.product && i.product.pid === pid
+          ? { ...i, quantity: qty }
+          : i
       );
       return nextCart;
     });
     setTimeout(() => syncCartToBackend(nextCart), 0);
   };
 
-  // =============================
-  // Wishlist
-  // =============================
+  /* =============================
+     Wishlist
+  ============================== */
   const toggleWishlist = async (product: Product) => {
     const exists = wishlist.some(p => p.pid === product.pid);
     const pWithId = product as Product & { _id?: string };
@@ -284,11 +303,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const isInWishlist = (pid: string) =>
     wishlist.some(p => p.pid === pid);
 
-  const cartCount = cartItems.reduce((s, i) => s + i.quantity, 0);
-  const cartTotal = cartItems.reduce(
-    (s, i) => s + i.product.price * i.quantity,
+  /* =============================
+     Derived values (CRASH FIX)
+  ============================== */
+  const cartCount = cartItems.reduce(
+    (sum, i) => sum + (i.quantity ?? 0),
     0
   );
+
+  const cartTotal = cartItems.reduce((sum, i) => {
+    if (!i.product) return sum;
+    return sum + i.product.price * i.quantity;
+  }, 0);
 
   return (
     <AppContext.Provider
@@ -326,6 +352,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/* ================================
+   Hook
+================================ */
 export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be used within AppProvider');

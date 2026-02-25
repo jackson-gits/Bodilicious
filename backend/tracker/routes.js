@@ -7,6 +7,7 @@ import {
   getSingleOrder,
   cancelOrder,
   deleteOrder,
+  trackShiprocketOrder,
 } from "./controller.js";
 
 const router = express.Router();
@@ -31,6 +32,10 @@ router.get("/:orderId", protect, getSingleOrder);
 // CANCEL ORDER
 // PATCH /api/orders/:orderId/cancel
 router.patch("/:orderId/cancel", protect, cancelOrder);
+
+// TRACK ORDER WITH SHIPROCKET (OR MOCK)
+// GET /api/orders/shiprocket/:awb
+router.get("/shiprocket/:awb", protect, trackShiprocketOrder);
 
 // SOFT DELETE ORDER (HIDE FROM HISTORY)
 // DELETE /api/orders/:orderId

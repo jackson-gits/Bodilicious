@@ -34,7 +34,8 @@ export type Page =
   | 'cart'
   | 'wishlist'
   | 'account'
-  | 'signin';
+  | 'signin'
+  | 'tracking';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 

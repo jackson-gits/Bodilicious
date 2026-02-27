@@ -1,9 +1,37 @@
-import { User, Package, Heart, MapPin, LogIn, LogOut, ChevronRight } from 'lucide-react';
+import { User, Package, Heart, MapPin, LogIn, LogOut, ChevronRight, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useState } from 'react';
 import Footer from '../components/Footer';
 
 export default function AccountPage() {
-  const { navigateTo, wishlist, orders, recentlyBought, user, authStatus, logout } = useApp();
+  const { navigateTo, wishlist, orders, recentlyBought, user, authStatus, logout, updateUserProfile } = useApp();
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: user?.displayName || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    city: user?.city || '',
+    state: user?.state || '',
+    pincode: user?.pincode || '',
+  });
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateUserProfile({
+        displayName: profileForm.name,
+        phone: profileForm.phone,
+        address: profileForm.address,
+        city: profileForm.city,
+        state: profileForm.state,
+        pincode: profileForm.pincode
+      });
+      setShowProfileForm(false);
+      alert("Profile updated successfully!");
+    } catch (err) {
+      alert("Failed to update profile.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -67,7 +95,22 @@ export default function AccountPage() {
               title: 'Profile',
               desc: 'Manage your personal info',
               count: null,
-              action: () => { },
+              action: () => {
+                if (authStatus === 'authenticated') {
+                  // Pre-fill form if opening
+                  setProfileForm({
+                    name: user?.displayName || '',
+                    phone: user?.phone || '',
+                    address: user?.address || '',
+                    city: user?.city || '',
+                    state: user?.state || '',
+                    pincode: user?.pincode || '',
+                  });
+                  setShowProfileForm(true);
+                } else {
+                  navigateTo('signin');
+                }
+              },
             },
             {
               Icon: MapPin,
@@ -143,6 +186,55 @@ export default function AccountPage() {
             </div>
           )}
         </div>
+
+        {/* PROFILE MODAL / FORM */}
+        {showProfileForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white max-w-lg w-full p-8 relative shadow-xl">
+              <button
+                onClick={() => setShowProfileForm(false)}
+                className="absolute top-4 right-4 text-grey-beige hover:text-dark-red"
+              >
+                <X size={20} />
+              </button>
+
+              <h2 className="font-serif text-dark-red text-2xl mb-6">Edit Profile</h2>
+              <form onSubmit={handleProfileUpdate} className="space-y-4">
+                <div>
+                  <label className="block font-sans text-xs text-dark-red mb-1">Full Name</label>
+                  <input required type="text" value={profileForm.name} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} className="w-full p-2 border border-silk bg-white font-sans text-sm outline-none focus:border-dark-red" />
+                </div>
+                <div>
+                  <label className="block font-sans text-xs text-dark-red mb-1">Phone Number</label>
+                  <input required type="tel" value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} className="w-full p-2 border border-silk bg-white font-sans text-sm outline-none focus:border-dark-red" />
+                </div>
+                <div>
+                  <label className="block font-sans text-xs text-dark-red mb-1">Street Address</label>
+                  <input required type="text" value={profileForm.address} onChange={e => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full p-2 border border-silk bg-white font-sans text-sm outline-none focus:border-dark-red" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-sans text-xs text-dark-red mb-1">City</label>
+                    <input required type="text" value={profileForm.city} onChange={e => setProfileForm({ ...profileForm, city: e.target.value })} className="w-full p-2 border border-silk bg-white font-sans text-sm outline-none focus:border-dark-red" />
+                  </div>
+                  <div>
+                    <label className="block font-sans text-xs text-dark-red mb-1">State</label>
+                    <input required type="text" value={profileForm.state} onChange={e => setProfileForm({ ...profileForm, state: e.target.value })} className="w-full p-2 border border-silk bg-white font-sans text-sm outline-none focus:border-dark-red" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-sans text-xs text-dark-red mb-1">Pincode</label>
+                  <input required type="text" value={profileForm.pincode} onChange={e => setProfileForm({ ...profileForm, pincode: e.target.value })} className="w-full p-2 border border-silk bg-white font-sans text-sm outline-none focus:border-dark-red" />
+                </div>
+
+                <button type="submit" className="w-full mt-6 bg-dark-red text-silk py-3 font-sans text-xs tracking-widest uppercase hover:bg-ruby-red transition-colors">
+                  Save Changes
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
       <Footer />
     </div>

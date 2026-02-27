@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { Product } from '../types';
 import { useApp } from '../context/AppContext';
+import { Link } from 'react-router-dom';
 import StarRating from './StarRating';
 
 interface ProductCardProps {
@@ -14,9 +15,13 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div className="group relative bg-white">
-      <div
-        className="relative overflow-hidden cursor-pointer bg-silk-light aspect-[3/4]"
-        onClick={() => navigateTo('product', product.pid)}
+      <Link
+        to={`/product?id=${product.pid}`}
+        onClick={(e) => {
+          e.preventDefault();
+          navigateTo('product', product.pid);
+        }}
+        className="relative overflow-hidden cursor-pointer bg-silk-light aspect-[3/4] block"
       >
         <img
           src={product.images[0]}
@@ -31,8 +36,8 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
             toggleWishlist(product);
           }}
           className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${inWishlist
-              ? 'bg-ruby-red text-white shadow-md'
-              : 'bg-white/90 text-dark-red/50 hover:text-ruby-red hover:bg-white shadow-sm'
+            ? 'bg-ruby-red text-white shadow-md'
+            : 'bg-white/90 text-dark-red/50 hover:text-ruby-red hover:bg-white shadow-sm'
             }`}
         >
           <Heart size={15} fill={inWishlist ? 'currentColor' : 'none'} />
@@ -51,6 +56,7 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
 
         <button
           onClick={e => {
+            e.preventDefault();
             e.stopPropagation();
             if (product.stock > 0) addToCart(product);
           }}
@@ -60,11 +66,15 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
           <ShoppingBag size={13} />
           {product.stock === 0 ? 'Sold Out' : 'Add to Bag'}
         </button>
-      </div>
+      </Link>
 
       <div className="pt-3 pb-1">
-        <button
-          onClick={() => navigateTo('product', product.pid)}
+        <Link
+          to={`/product?id=${product.pid}`}
+          onClick={(e) => {
+            e.preventDefault();
+            navigateTo('product', product.pid);
+          }}
           className="block text-left w-full"
         >
           <p className="text-[10px] font-sans tracking-widest uppercase text-grey-beige mb-1">
@@ -73,7 +83,7 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
           <h3 className="font-serif text-dark-red text-sm leading-snug mb-2 group-hover:text-ruby-red transition-colors">
             {product.name}
           </h3>
-        </button>
+        </Link>
         <div className="flex items-center justify-between">
           <StarRating rating={product.rating} count={product.ratingCount} size={12} />
           <span className="font-sans font-semibold text-dark-red text-sm">

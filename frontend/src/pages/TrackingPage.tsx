@@ -1,146 +1,384 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Package, Search, ChevronRight, CheckCircle2, Circle, ArrowLeft } from 'lucide-react';
+import { Package, ArrowLeft, AlertCircle, RefreshCw, Calendar, CreditCard, FileText, Trash2 } from 'lucide-react';
 import Footer from '../components/Footer';
-
-interface TrackingData {
-    awb: string;
-    status: string;
-    expectedDelivery: string;
-    timeline: {
-        status: string;
-        location: string;
-        date: string;
-        completed: boolean;
-    }[];
-}
+import { Order, TimelineEvent } from '../types';
 
 export default function TrackingPage() {
-    const { navigateTo, getAuthHeaders } = useApp();
-    const [awb, setAwb] = useState('');
+    const { navigateTo, getAuthHeaders, orders, cancelOrder, deleteOrder } = useApp();
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [isCancelling, setIsCancelling] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [trackingData, setTrackingData] = useState<{
+        status: string;
+        expectedDelivery: string;
+        timeline: TimelineEvent[];
+    } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
 
-    const handleTrack = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!awb.trim()) return;
+    useEffect(() => {
+        // Fetch tracking when an order is selected
+        if (selectedOrder) {
+            // Check if selected order still exists
+            const exists = orders.find(o => o._id === selectedOrder._id);
+            if (!exists) {
+                setSelectedOrder(null);
+                setTrackingData(null);
+                return;
+            }
+            fetchTracking(selectedOrder);
+        } else {
+            setTrackingData(null);
+            setError('');
+        }
+    }, [selectedOrder]);
 
+    const fetchTracking = async (order: Order) => {
         setIsLoading(true);
         setError('');
         setTrackingData(null);
 
         try {
+            if (!order.awb) {
+                // If no AWB, show generic timeline based on db status
+                if (order.orderStatus === 'cancelled') {
+                    setTrackingData({
+                        status: 'Cancelled',
+                        expectedDelivery: 'N/A',
+                        timeline: [
+                            { status: 'Order Confirmed', location: 'System', date: new Date(order.createdAt).toLocaleDateString(), completed: true },
+                            { status: 'Cancelled', location: 'System', date: '', completed: true }
+                        ]
+                    });
+                    return;
+                }
+
+                setTrackingData({
+                    status: order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1),
+                    expectedDelivery: 'Soon',
+                    timeline: [
+                        { status: 'Order Confirmed', location: 'System', date: new Date(order.createdAt).toLocaleDateString(), completed: true },
+                        { status: 'Processing', location: 'Warehouse', date: '', completed: false },
+                        { status: 'Shipped', location: '', date: '', completed: false },
+                        { status: 'Out for Delivery', location: '', date: '', completed: false },
+                        { status: 'Delivered', location: '', date: '', completed: false }
+                    ]
+                });
+                return;
+            }
+
             const headers = await getAuthHeaders();
-            const res = await fetch(`http://localhost:5000/api/v1/orders/shiprocket/${awb}`, {
+            const res = await fetch(`http://localhost:5000/api/v1/orders/shiprocket/${order.awb}`, {
                 headers
             });
 
             const data = await res.json();
 
             if (!res.ok) {
+                // Handle cancelled or failed orders internally if Shiprocket throws an error
+                if (order.orderStatus === 'cancelled') {
+                    setTrackingData({
+                        status: 'Cancelled',
+                        expectedDelivery: 'N/A',
+                        timeline: [
+                            { status: 'Order Confirmed', location: 'System', date: new Date(order.createdAt).toLocaleDateString(), completed: true },
+                            { status: 'Cancelled', location: 'System', date: '', completed: true }
+                        ]
+                    });
+                    return;
+                }
                 throw new Error(data.message || 'Failed to fetch tracking details');
             }
 
-            // Map shiprocket response to our UI format
-            // In a real implementation this would parse the specific Shiprocket JSON structure
             setTrackingData(data.data);
         } catch (err: any) {
             setError(err.message || 'An error occurred while tracking your order');
+            // Show fallback timeline on error
+            setTrackingData({
+                status: order.orderStatus,
+                expectedDelivery: 'Pending',
+                timeline: [
+                    { status: 'Order Confirmed', location: 'System', date: new Date(order.createdAt).toLocaleDateString(), completed: true },
+                    { status: 'Pending Tracking Update', location: '', date: '', completed: false }
+                ]
+            });
         } finally {
             setIsLoading(false);
         }
     };
 
-    return (
-        <div className="min-h-screen bg-white flex flex-col">
-            <div className="flex-1 max-w-3xl mx-auto w-full px-6 pt-28 pb-16">
+    const handleCancelOrder = async () => {
+        if (!selectedOrder) return;
+        if (!window.confirm("Are you sure you want to cancel this order? This action cannot be undone.")) return;
 
-                <button
-                    onClick={() => navigateTo('account')}
-                    className="flex items-center gap-2 text-sm text-grey-beige hover:text-dark-red transition-colors mb-8 font-sans"
-                >
-                    <ArrowLeft size={16} /> Back to Account
-                </button>
+        setIsCancelling(true);
+        try {
+            await cancelOrder(selectedOrder._id);
+            // Update local order state to show it's cancelled immediately
+            setSelectedOrder(prev => prev ? { ...prev, orderStatus: 'cancelled' } : null);
+            setTrackingData(prev => prev ? { ...prev, status: 'Cancelled' } : null);
+        } catch (err: any) {
+            alert(err.message || 'Failed to cancel order');
+        } finally {
+            setIsCancelling(false);
+        }
+    };
 
-                <h1 className="font-serif text-dark-red text-4xl mb-2">Track Your Order</h1>
-                <p className="font-sans text-grey-beige text-sm mb-10">
-                    Enter your AWB (Airway Bill) number or Order ID below to see the latest updates on your shipment.
-                </p>
+    const handleDeleteOrder = async () => {
+        if (!selectedOrder) return;
+        if (!window.confirm("Are you sure you want to completely remove this order from your history?")) return;
 
-                <div className="bg-silk-light p-6 border border-silk/30 mb-10">
-                    <form onSubmit={handleTrack} className="flex gap-4">
-                        <div className="flex-1 relative">
-                            <input
-                                type="text"
-                                placeholder="Enter AWB or Order ID"
-                                value={awb}
-                                onChange={(e) => setAwb(e.target.value)}
-                                className="w-full bg-white border border-silk px-4 py-3 pl-12 font-sans text-sm focus:outline-none focus:border-dark-red transition-colors"
-                                required
-                            />
-                            <Package size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-grey-beige" />
-                        </div>
-                        <button
-                            type="submit"
-                            disabled={isLoading || !awb.trim()}
-                            className="bg-dark-red text-silk px-8 py-3 font-sans text-sm tracking-widest uppercase hover:bg-ruby-red transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                            {isLoading ? 'Tracking...' : (
-                                <>Track <Search size={16} /></>
-                            )}
-                        </button>
-                    </form>
-                    {error && (
-                        <p className="mt-4 text-sm text-red-500 font-sans">{error}</p>
+        setIsDeleting(true);
+        try {
+            await deleteOrder(selectedOrder._id);
+            setSelectedOrder(null);
+        } catch (err: any) {
+            alert(err.message || 'Failed to clear order');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    // Horizontal Progress view component
+    const HorizontalTimeline = ({ timeline, status }: { timeline: TimelineEvent[], status: string }) => {
+        const isErrorState = status.toLowerCase() === 'cancelled' || status.toLowerCase().includes('fail');
+        const activeColor = isErrorState ? 'bg-red-500' : 'bg-[#e77600]'; // Amazon orange
+
+        return (
+            <div className="w-full mb-16 mt-8 hidden sm:block">
+                <div className="relative flex justify-between items-center mb-8 px-4">
+                    {/* Background line */}
+                    <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-1 bg-gray-200 -z-10"></div>
+
+                    {/* Active line */}
+                    {timeline.length > 0 && (
+                        <div
+                            className={`absolute left-4 top-1/2 -translate-y-1/2 h-1 ${activeColor} -z-10 transition-all duration-500`}
+                            style={{
+                                width: `calc(${(timeline.filter(t => t.completed).length - 1) / (timeline.length - 1) * 100}% - 2rem)`
+                            }}
+                        ></div>
                     )}
+
+                    {timeline.map((event, idx) => (
+                        <div key={idx} className="relative flex flex-col items-center z-10">
+                            <div className={`w-5 h-5 rounded-full border-4 ${event.completed ? activeColor + ' border-' + activeColor : 'bg-gray-200 border-gray-200'} transition-colors duration-500`}></div>
+                            <div className="absolute top-8 w-24 text-center">
+                                <p className={`text-xs font-semibold ${event.completed ? 'text-gray-900' : 'text-gray-400'}`}>{event.status}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    if (!orders || orders.length === 0) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col">
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                    <Package className="w-16 h-16 text-silk mb-4" />
+                    <h2 className="font-serif text-dark-red text-2xl mb-2">No Orders Found</h2>
+                    <p className="font-sans text-grey-beige mb-6">Looks like you haven't placed any orders yet.</p>
+                    <button
+                        onClick={() => navigateTo('shop')}
+                        className="bg-dark-red text-silk px-8 py-3 font-sans text-sm tracking-widest uppercase hover:bg-ruby-red transition-colors"
+                    >
+                        Start Shopping
+                    </button>
+                </div>
+                <Footer />
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-neutral-50 flex flex-col">
+            <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 pt-24 pb-16 flex flex-col lg:flex-row gap-6">
+
+                {/* Left Sidebar - Order List */}
+                <div className="w-full lg:w-1/3 flex flex-col gap-4">
+                    <button
+                        onClick={() => navigateTo('account')}
+                        className="flex items-center gap-2 text-sm text-grey-beige hover:text-dark-red transition-colors mb-2 font-sans"
+                    >
+                        <ArrowLeft size={16} /> Back to Account
+                    </button>
+                    <h1 className="font-serif text-dark-red text-3xl mb-2">Your Orders</h1>
+
+                    <div className="flex flex-col gap-3 max-h-[700px] overflow-y-auto pr-2 pb-8">
+                        {[...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(order => (
+                            <div
+                                key={order._id}
+                                onClick={() => setSelectedOrder(order)}
+                                className={`p-4 border rounded-md cursor-pointer transition-all shadow-sm ${selectedOrder?._id === order._id ? 'border-dark-red bg-red-50/30 ring-1 ring-dark-red' : 'border-gray-200 bg-white hover:border-dark-red/50 hover:shadow-md'} flex gap-4`}
+                            >
+                                <div className="w-16 h-16 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
+                                    {order.items[0]?.product?.images?.[0] && (
+                                        <img src={order.items[0].product.images[0]} alt="" className="w-full h-full object-cover" />
+                                    )}
+                                </div>
+                                <div className="flex-1 flex flex-col justify-center">
+                                    <p className="font-sans text-xs text-gray-500 mb-1">
+                                        Ordered on {new Date(order.createdAt).toLocaleDateString()}
+                                    </p>
+                                    <p className="font-serif text-dark-red text-sm line-clamp-2 mb-1 leading-snug">
+                                        {order.items[0]?.product?.name} {order.items.length > 1 ? `+ ${order.items.length - 1} more item(s)` : ''}
+                                    </p>
+                                    <p className="font-sans text-xs font-semibold text-gray-900 mt-auto">
+                                        ₹{order.totalAmount.toLocaleString('en-IN')}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                {trackingData && (
-                    <div className="border border-silk p-8 bg-white relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-silk-light rounded-bl-full -z-10 opacity-50"></div>
-
-                        <div className="mb-8 pb-8 border-b border-silk/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div>
-                                <h2 className="font-serif text-dark-red text-2xl mb-1">
-                                    Status: <span className="text-ruby-red">{trackingData.status}</span>
-                                </h2>
-                                <p className="font-sans text-grey-beige text-sm">AWB: {trackingData.awb}</p>
-                            </div>
-                            <div className="text-left md:text-right">
-                                <p className="font-sans text-xs text-grey-beige uppercase tracking-wider mb-1">Expected Delivery</p>
-                                <p className="font-serif text-dark-red text-lg">{trackingData.expectedDelivery}</p>
-                            </div>
-                        </div>
-
-                        <div className="relative pl-6 space-y-8 before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-dark-red before:via-dark-red/50 before:to-transparent">
-                            {trackingData.timeline.map((event, idx) => (
-                                <div key={idx} className="relative flex items-start gap-6 before:absolute before:left-0 md:before:left-1/2 md:before:-ml-px before:-z-10">
-                                    <div className="absolute left-[-24px] bg-white mt-0.5">
-                                        {event.completed ? (
-                                            <CheckCircle2 className="w-6 h-6 text-dark-red bg-white rounded-full" />
-                                        ) : (
-                                            <div className="w-6 h-6 flex items-center justify-center bg-white">
-                                                <Circle className="w-4 h-4 text-silk fill-silk-light" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className={`font-serif text-lg ${event.completed ? 'text-dark-red' : 'text-grey-beige'}`}>
-                                            {event.status}
-                                        </h3>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <p className="font-sans text-sm text-grey-beige">{event.location}</p>
-                                            <span className="w-1 h-1 rounded-full bg-silk"></span>
-                                            <p className="font-sans text-xs text-grey-beige">{event.date}</p>
-                                        </div>
-                                    </div>
+                {/* Right Content - Tracking View */}
+                <div className="w-full lg:w-2/3">
+                    {selectedOrder ? (
+                        <div className="border border-gray-200 rounded-lg p-6 sm:p-8 bg-white h-auto sm:h-full relative shadow-sm">
+                            {/* Header Status Phase */}
+                            <div className="mb-6 flex justify-between items-start">
+                                <div>
+                                    <h2 className={`font-sans font-bold text-2xl mb-1 ${trackingData?.status.toLowerCase() === 'cancelled' ? 'text-red-600' : 'text-[#e77600]'}`}>
+                                        {trackingData?.status || "Processing"}
+                                    </h2>
+                                    <p className="font-sans text-gray-700 text-sm">
+                                        Expected delivery: <span className="font-semibold text-green-700">{trackingData?.expectedDelivery || 'Pending'}</span>
+                                    </p>
                                 </div>
-                            ))}
-                        </div>
+                                <div className="flex items-center gap-2">
+                                    {selectedOrder.orderStatus !== 'cancelled' && selectedOrder.orderStatus !== 'delivered' && selectedOrder.orderStatus !== 'shipped' && (
+                                        <button
+                                            onClick={handleCancelOrder}
+                                            disabled={isCancelling || isDeleting}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 border border-red-200 rounded-md transition-colors"
+                                        >
+                                            <AlertCircle size={16} /> {isCancelling ? 'Cancelling...' : 'Cancel Order'}
+                                        </button>
+                                    )}
+                                    {(selectedOrder.orderStatus === 'cancelled' || selectedOrder.orderStatus === 'delivered') && (
+                                        <button
+                                            onClick={handleDeleteOrder}
+                                            disabled={isCancelling || isDeleting}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-md transition-colors"
+                                            title="Clear Order History"
+                                        >
+                                            <Trash2 size={16} /> {isDeleting ? 'Clearing...' : 'Clear Order'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
 
-                    </div>
-                )}
+                            {/* Order Details Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 bg-gray-50 border border-gray-100 p-4 rounded-md">
+                                <div>
+                                    <div className="flex items-center gap-1 text-gray-500 text-xs mb-1">
+                                        <FileText size={12} /> Transaction ID
+                                    </div>
+                                    <p className="font-mono text-xs font-semibold text-gray-900 break-all">{selectedOrder._id}</p>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-1 text-gray-500 text-xs mb-1">
+                                        <Calendar size={12} /> Date Placed
+                                    </div>
+                                    <p className="font-sans text-sm font-semibold text-gray-900">
+                                        {new Date(selectedOrder.createdAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-1 text-gray-500 text-xs mb-1">
+                                        <CreditCard size={12} /> Total Amount
+                                    </div>
+                                    <p className="font-sans text-sm font-semibold text-gray-900">
+                                        ₹{selectedOrder.totalAmount.toLocaleString('en-IN')}
+                                    </p>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-1 text-gray-500 text-xs mb-1">
+                                        <RefreshCw size={12} /> Payment Status
+                                    </div>
+                                    <p className="font-sans text-sm font-semibold capitalize text-gray-900">
+                                        {selectedOrder.paymentStatus}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Horizontal Tracker for larger screens */}
+                            {trackingData?.timeline && (
+                                <HorizontalTimeline timeline={trackingData.timeline} status={trackingData.status} />
+                            )}
+
+                            {/* Products summary inline relative to amazon view */}
+                            <div className="flex items-center gap-4 mb-6 pt-6 border-t border-gray-100">
+                                <div className="flex -space-x-3">
+                                    {selectedOrder.items.slice(0, 3).map((item, idx) => {
+                                        if (!item.product?.images?.[0]) return null;
+                                        return (
+                                            <div key={idx} className="w-14 h-14 rounded-full border-2 border-white overflow-hidden bg-gray-100 shrink-0 relative z-[1]">
+                                                <img src={item.product.images[0]} alt="" className="w-full h-full object-cover" />
+                                            </div>
+                                        );
+                                    })}
+                                    {selectedOrder.items.length > 3 && (
+                                        <div className="w-14 h-14 rounded-full border-2 border-white overflow-hidden bg-gray-100 shrink-0 relative z-[1] flex items-center justify-center font-sans text-xs text-gray-500">
+                                            +{selectedOrder.items.length - 3}
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="font-sans text-sm text-gray-700">
+                                        <strong>{selectedOrder.items.length} item{selectedOrder.items.length > 1 ? 's' : ''}</strong> in this shipment
+                                    </p>
+                                    {selectedOrder.awb && (
+                                        <p className="font-sans text-xs text-gray-500 mt-1">AWB: {selectedOrder.awb}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Detailed List tracking breakdown */}
+                            <div className="bg-gray-50 rounded-md p-5 border border-gray-200 mt-8">
+                                <h3 className="font-sans font-bold text-sm text-gray-900 mb-4 pb-2 border-b border-gray-200">Tracking Details:</h3>
+                                {isLoading ? (
+                                    <div className="flex items-center justify-center py-8 text-gray-400">
+                                        <RefreshCw className="animate-spin w-5 h-5 mr-3" /> Loading tracking...
+                                    </div>
+                                ) : error ? (
+                                    <div className="flex items-start gap-3 p-3 rounded bg-red-50 border border-red-100 text-red-700 text-sm">
+                                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                                        <p>{error}</p>
+                                    </div>
+                                ) : trackingData?.timeline && trackingData.timeline.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {/* Reversing timeline so newest is at the top */}
+                                        {[...trackingData.timeline].reverse().filter(t => t.completed).map((event, idx) => (
+                                            <div key={idx} className="flex flex-col sm:flex-row gap-1 sm:gap-6 text-sm font-sans">
+                                                <div className="w-48 text-gray-600 shrink-0">
+                                                    {event.date}
+                                                    {event.location && <span className="block text-gray-500 text-xs">{event.location}</span>}
+                                                </div>
+                                                <div className="text-gray-900">
+                                                    {event.status}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500 italic">No detailed tracking information is available yet.</p>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="border border-gray-200 rounded-lg p-8 bg-white h-full flex items-center justify-center text-center shadow-sm min-h-[400px]">
+                            <div>
+                                <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                <p className="font-sans text-gray-500">Select an order from the list to track its shipment.</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
             </div>
             <Footer />

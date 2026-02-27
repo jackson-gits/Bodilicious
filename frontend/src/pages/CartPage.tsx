@@ -1,11 +1,15 @@
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Footer from '../components/Footer';
 
 export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, navigateTo } = useApp();
+  const navigate = useNavigate();
 
-  if (cartItems.length === 0) {
+  const validCartItems = cartItems.filter(item => item && item.product);
+
+  if (validCartItems.length === 0) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6 pt-24 pb-16">
@@ -36,7 +40,7 @@ export default function CartPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-0 divide-y divide-silk">
-            {cartItems.map(item => (
+            {validCartItems.map(item => (
               <div key={item.product.pid} className="flex gap-5 py-6">
                 <button
                   onClick={() => navigateTo('product', item.product.pid)}
@@ -120,7 +124,10 @@ export default function CartPage() {
                   <span>₹{total.toLocaleString('en-IN')}</span>
                 </div>
               </div>
-              <button className="w-full bg-dark-red text-silk py-4 font-sans text-xs tracking-widest uppercase hover:bg-ruby-red transition-colors flex items-center justify-center gap-2 mb-3">
+
+              <button
+                onClick={() => navigate('/shipping')}
+                className="w-full bg-dark-red text-silk py-4 font-sans text-xs tracking-widest uppercase hover:bg-ruby-red transition-colors flex items-center justify-center gap-2 mb-3">
                 Proceed to Checkout <ArrowRight size={14} />
               </button>
               <button

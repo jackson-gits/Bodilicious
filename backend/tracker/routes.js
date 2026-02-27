@@ -17,28 +17,41 @@ const router = express.Router();
   Base: /api/orders
 */
 
+// =============================
 // CREATE ORDER
 // POST /api/orders
+// =============================
 router.post("/", protect, createOrder);
 
+// =============================
 // GET MY ORDERS
 // GET /api/orders
+// =============================
 router.get("/", protect, getMyOrders);
 
-// GET SINGLE ORDER
-// GET /api/orders/:orderId
-router.get("/:orderId", protect, getSingleOrder);
-
-// CANCEL ORDER
-// PATCH /api/orders/:orderId/cancel
-router.patch("/:orderId/cancel", protect, cancelOrder);
-
-// TRACK ORDER WITH SHIPROCKET (OR MOCK)
+// =============================
+// TRACK ORDER (Shiprocket)
 // GET /api/orders/shiprocket/:awb
+// ⚠ Must be ABOVE :orderId route
+// =============================
 router.get("/shiprocket/:awb", protect, trackShiprocketOrder);
 
-// SOFT DELETE ORDER (HIDE FROM HISTORY)
+// =============================
+// GET SINGLE ORDER
+// GET /api/orders/:orderId
+// =============================
+router.get("/:orderId", protect, getSingleOrder);
+
+// =============================
+// CANCEL ORDER
+// PATCH /api/orders/:orderId/cancel
+// =============================
+router.patch("/:orderId/cancel", protect, cancelOrder);
+
+// =============================
+// SOFT DELETE ORDER
 // DELETE /api/orders/:orderId
+// =============================
 router.delete("/:orderId", protect, deleteOrder);
 
 export default router;

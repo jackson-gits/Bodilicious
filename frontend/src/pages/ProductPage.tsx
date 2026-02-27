@@ -85,7 +85,7 @@ export default function ProductPage() {
 
   const handleAddToCart = useCallback(() => {
     if (product) {
-      for (let i = 0; i < qty; i++) addToCart(product);
+      addToCart(product, qty);
     }
   }, [qty, addToCart, product]);
 

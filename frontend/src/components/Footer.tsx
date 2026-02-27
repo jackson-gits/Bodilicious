@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Instagram, Facebook, Youtube, Twitter } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
   const [email, setEmail] = useState('');
@@ -45,7 +46,7 @@ export default function Footer() {
               </form>
             )}
 
-           
+
           </div>
 
           <div>
@@ -53,11 +54,15 @@ export default function Footer() {
               Customer Service
             </h3>
             <ul className="space-y-2.5">
-              {['Contact Us', 'Shipping & Returns', 'FAQs'].map(item => (
-                <li key={item}>
-                  <button className="text-sm font-sans text-grey-beige hover:text-ruby-red transition-colors tracking-wide">
-                    {item}
-                  </button>
+              {[
+                { label: 'Contact Us', path: '/contact' },
+                { label: 'Shipping & Returns', path: '/shipping' },
+                { label: 'FAQs', path: '/faqs' }
+              ].map(item => (
+                <li key={item.label}>
+                  <Link to={item.path} className="text-sm font-sans flex items-center w-fit text-grey-beige hover:text-ruby-red hover:translate-x-1 transition-all duration-300 tracking-wide">
+                    {item.label}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -69,18 +74,18 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2.5">
               {[
-                'Store Locator',
-                'Terms & Conditions of Sale',
-                'Terms & Conditions of Use',
-                'Accessibility Declaration',
-                'Privacy Policy',
-                'Careers',
-                'Student Savings',
+                { label: 'Store Locator', path: '/stores' },
+                { label: 'Terms & Conditions of Sale', path: '/terms-sale' },
+                { label: 'Terms & Conditions of Use', path: '/terms-use' },
+                { label: 'Accessibility Declaration', path: '/accessibility' },
+                { label: 'Privacy Policy', path: '/privacy' },
+                { label: 'Careers', path: '/careers' },
+                { label: 'Student Savings', path: '/students' },
               ].map(item => (
-                <li key={item}>
-                  <button className="text-sm font-sans text-grey-beige hover:text-ruby-red transition-colors tracking-wide">
-                    {item}
-                  </button>
+                <li key={item.label}>
+                  <Link to={item.path} className="text-sm font-sans flex items-center w-fit text-grey-beige hover:text-ruby-red hover:translate-x-1 transition-all duration-300 tracking-wide">
+                    {item.label}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -92,27 +97,33 @@ export default function Footer() {
             </h3>
             <div className="flex gap-4 flex-wrap">
               {[
-                { Icon: Instagram, label: 'Instagram' },
-                { Icon: Facebook, label: 'Facebook' },
-                { Icon: Youtube, label: 'YouTube' },
-                { Icon: Twitter, label: 'Twitter' },
-              ].map(({ Icon, label }) => (
-                <button
+                { Icon: Instagram, label: 'Instagram', url: 'https://instagram.com' },
+                { Icon: Facebook, label: 'Facebook', url: 'https://facebook.com' },
+                { Icon: Youtube, label: 'YouTube', url: 'https://youtube.com' },
+                { Icon: Twitter, label: 'Twitter', url: 'https://twitter.com' },
+              ].map(({ Icon, label, url }) => (
+                <a
                   key={label}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={label}
-                  className="text-grey-beige hover:text-ruby-red transition-colors"
+                  className="text-grey-beige hover:text-ruby-red hover:-translate-y-1 hover:scale-110 transition-all duration-300 inline-block"
                 >
                   <Icon size={20} />
-                </button>
+                </a>
               ))}
-              <button
+              <a
+                href="https://tiktok.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="TikTok"
-                className="text-grey-beige hover:text-ruby-red transition-colors"
+                className="text-grey-beige hover:text-ruby-red hover:-translate-y-1 hover:scale-110 transition-all duration-300 inline-block"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z" fill="currentColor" />
                 </svg>
-              </button>
+              </a>
             </div>
           </div>
         </div>

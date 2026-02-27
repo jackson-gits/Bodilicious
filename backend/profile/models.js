@@ -31,6 +31,18 @@ const userProfileSchema = new mongoose.Schema(
       type: String,
     },
 
+    city: {
+      type: String,
+    },
+
+    state: {
+      type: String,
+    },
+
+    pincode: {
+      type: String,
+    },
+
     recentlyBought: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -27,15 +27,7 @@ export interface CartItem {
   quantity: number;
 }
 
-export type Page =
-  | 'home'
-  | 'shop'
-  | 'product'
-  | 'cart'
-  | 'wishlist'
-  | 'account'
-  | 'signin'
-  | 'tracking';
+export type Page = 'home' | 'shop' | 'product' | 'signin' | 'signup' | 'cart' | 'wishlist' | 'account' | 'tracking' | 'chat' | 'payment' | 'shipping';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -44,4 +36,37 @@ export interface User {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+}
+
+export interface TimelineEvent {
+  status: string;
+  location: string;
+  date: string;
+  completed: boolean;
+}
+
+export interface Order {
+  _id: string;
+  awb: string | null;
+  totalAmount: number;
+  orderStatus: string;
+  paymentStatus: string;
+  createdAt: string;
+  shippingDetails: {
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  items: {
+    product: Product;
+    quantity: number;
+    priceAtPurchase: number;
+  }[];
 }

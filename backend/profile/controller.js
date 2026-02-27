@@ -14,6 +14,7 @@ export const getProfile = async (req, res) => {
       .populate("cart.product")
       .populate({
         path: "orders",
+        match: { isDeleted: false },
         populate: {
           path: "items.product",
         },

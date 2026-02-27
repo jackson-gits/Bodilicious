@@ -2,6 +2,7 @@ import Fuse from "fuse.js";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import { getProducts } from "./products.js";
+import { matchIntent } from "./intents.js";
 
 /* ===================================================
    RATE LIMITING
@@ -117,6 +118,61 @@ STRICT RULES:
 /* ===================================================
    HELPERS
 =================================================== */
+function extractContext(messages) {
+  const context = {
+    domain: null,
+    skinType: null,
+    concern: null,
+    productType: null
+  };
+
+  for (const msg of messages) {
+    if (!msg) continue;
+    const lower = msg.toLowerCase();
+
+    if (!context.domain) {
+      if (lower.match(/\b(skin|acne|oily|dry|pigment|face|dark spot|spots)\b/)) context.domain = "skin";
+      else if (lower.match(/\b(hair|dandruff|scalp|shampoo)\b/)) context.domain = "hair";
+      else if (lower.match(/\b(body|soap|bath|wash)\b/)) context.domain = "body";
+    }
+
+    if (!context.skinType) {
+      if (lower.match(/\b(oily)\b/)) context.skinType = "oily";
+      else if (lower.match(/\b(dry)\b/)) context.skinType = "dry";
+      else if (lower.match(/\b(combination)\b/)) context.skinType = "combination";
+      else if (lower.match(/\b(normal)\b/)) context.skinType = "normal";
+      else if (lower.match(/\b(sensitive)\b/)) context.skinType = "sensitive";
+      else if (lower.match(/\b(acne[\s-]prone)\b/)) context.skinType = "acne_prone";
+    }
+
+    if (!context.concern) {
+      if (lower.match(/\b(acne|pimples|breakouts)\b/)) context.concern = "acne";
+      else if (lower.match(/\b(pigmentation|dark spots|marks)\b/)) context.concern = "pigmentation";
+      else if (lower.match(/\b(dull|dullness|glow)\b/)) context.concern = "dullness";
+      else if (lower.match(/\b(aging|wrinkles|fine lines)\b/)) context.concern = "aging";
+      else if (lower.match(/\b(barrier|redness|irritated)\b/)) context.concern = "barrier_damage";
+      else if (lower.match(/\b(dandruff|flakes|flaky)\b/)) context.concern = "dandruff";
+      else if (lower.match(/\b(hair fall|hair loss|weak roots)\b/)) context.concern = "hair_fall";
+      else if (lower.match(/\b(frizz|dry hair)\b/)) context.concern = "frizz";
+    }
+
+    if (!context.productType) {
+      if (lower.match(/\b(serum)\b/)) context.productType = "serum";
+      else if (lower.match(/\b(moisturizer|cream|lotion)\b/)) context.productType = "moisturizer";
+      else if (lower.match(/\b(sunscreen|spf)\b/)) context.productType = "sunscreen";
+      else if (lower.match(/\b(face wash|cleanser|soap)\b/)) context.productType = "cleanser";
+      else if (lower.match(/\b(shampoo)\b/)) context.productType = "shampoo";
+      else if (lower.match(/\b(conditioner)\b/)) context.productType = "conditioner";
+      else if (lower.match(/\b(oil)\b/)) context.productType = "oil";
+      else if (lower.match(/\b(lip balm)\b/)) context.productType = "lip_balm";
+      else if (lower.match(/\b(foundation)\b/)) context.productType = "foundation";
+      else if (lower.match(/\b(lipstick)\b/)) context.productType = "lipstick";
+      else if (lower.match(/\b(eye cream)\b/)) context.productType = "eye_care";
+    }
+  }
+  return context;
+}
+
 function matchFAQ(message) {
   for (const [key, answer] of Object.entries(FAQ_ANSWERS)) {
     const regex = new RegExp(`\\b${key}\\b`, "i");
@@ -163,7 +219,7 @@ ${suitableText}\n\n`;
 =================================================== */
 export const handleChat = async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, history = [] } = req.body;
 
     if (!message || typeof message !== "string") {
       return res.status(400).json({
@@ -184,141 +240,85 @@ export const handleChat = async (req, res) => {
       });
     }
 
-    /* ---------- STEP 2: DOMAIN + INTENT DETECTION ---------- */
+    /* ---------- STEP 1.5: RULE-BASED INTENTS ---------- */
+    const intentReply = matchIntent(lower, products);
+    if (intentReply) {
+      return res.json(intentReply);
+    }
 
-    let domain = "mixed"; // skin | hair | body | mixed
+    /* ---------- STEP 2: CONTEXT-BASED MATCH ---------- */
+    // Parse context from newest to oldest message
+    const orderedMessages = [message, ...[...history].reverse()];
+    const context = extractContext(orderedMessages);
+
     let intentProducts = [];
 
-    // ---- SKIN ----
-    if (
-      lower.includes("skin") ||
-      lower.includes("acne") ||
-      lower.includes("oily") ||
-      lower.includes("dry") ||
-      lower.includes("pigment") ||
-      lower.includes("dark spot") ||
-      lower.includes("face")
-    ) {
-      domain = "skin";
-      intentProducts = products.filter(p =>
-        p.product_type.toLowerCase().includes("serum") ||
-        p.product_type.toLowerCase().includes("face") ||
-        p.product_type.toLowerCase().includes("moisturizer") ||
-        p.product_type.toLowerCase().includes("sunscreen")
-      );
+    // Apply filters based on context IF we found actionable context beyond just domain
+    if (context.skinType || context.concern || context.productType) {
+      intentProducts = products;
+
+      if (context.domain) {
+        intentProducts = intentProducts.filter(p => !p.category || p.category === context.domain || p.category === "mixed");
+      }
+
+      if (context.skinType) {
+        intentProducts = intentProducts.filter(p =>
+          !p.skin_type_not_suitable?.includes(context.skinType) &&
+          (!p.skin_type_suitable || p.skin_type_suitable.length === 0 || p.skin_type_suitable.includes(context.skinType) || p.skin_type_suitable.includes("all"))
+        );
+      }
+
+      if (context.concern) {
+        intentProducts = intentProducts.filter(p =>
+          p.concerns_targeted && p.concerns_targeted.some(c => c.includes(context.concern) || context.concern.includes(c))
+        );
+      }
+
+      if (context.productType) {
+        intentProducts = intentProducts.filter(p =>
+          p.sub_category === context.productType ||
+          (p.product_type && p.product_type.toLowerCase().includes(context.productType.replace("_", " ")))
+        );
+      }
+
+      if (intentProducts.length > 0) {
+        return res.json({
+          success: true,
+          isProduct: true,
+          domain: context.domain || "mixed",
+          reply: "Based on what you've told me, here are some products that match your needs:",
+          products: intentProducts.slice(0, 3)
+        });
+      }
     }
 
-    // ---- HAIR ----
-    if (
-      lower.includes("hair") ||
-      lower.includes("dandruff") ||
-      lower.includes("hair fall") ||
-      lower.includes("scalp")
-    ) {
-      domain = "hair";
-      intentProducts = products.filter(p =>
-        p.product_type.toLowerCase().includes("hair") ||
-        p.product_type.toLowerCase().includes("shampoo") ||
-        p.product_type.toLowerCase().includes("conditioner")
-      );
-    }
-
-    // ---- BODY ----
-    if (
-      lower.includes("body") ||
-      lower.includes("soap") ||
-      lower.includes("bath") ||
-      lower.includes("wash")
-    ) {
-      domain = "body";
-      intentProducts = products.filter(p =>
-        p.product_type.toLowerCase().includes("soap") ||
-        p.product_type.toLowerCase().includes("body")
-      );
-    }
-
-    // If we found clear domain products → return directly
-    if (intentProducts.length > 0) {
-      return res.json({
-        success: true,
-        isProduct: true,
-        domain,
-        reply: formatProductReply(intentProducts.slice(0, 3))
-      });
-    }
-
-    /* ---------- STEP 3: FUZZY MATCH (NAME / DESCRIPTION) ---------- */
+    /* ---------- STEP 3: FUZZY SEARCH WITH CONTEXT ---------- */
     const cleaned = cleanQuery(lower);
-    const fuseResults = fuse.search(cleaned || message);
+
+    // Create an enhanced search query using context if available
+    const contextWords = [];
+    if (context.skinType) contextWords.push(context.skinType.replace("_", " "));
+    if (context.concern) contextWords.push(context.concern.replace("_", " "));
+    if (context.productType) contextWords.push(context.productType.replace("_", " "));
+
+    // Fall back to original message if no context
+    const searchQuery = contextWords.length > 0 ? contextWords.join(" ") : (cleaned || message);
+
+    const fuseResults = fuse.search(searchQuery);
 
     if (fuseResults.length > 0) {
       return res.json({
         success: true,
         isProduct: true,
-        reply: formatProductReply(
-          fuseResults.map(r => r.item).slice(0, 3)
-        )
+        reply: "Here are some products that may match what you're looking for:",
+        products: fuseResults.map(r => r.item).slice(0, 3)
       });
     }
 
-    /* ---------- STEP 4: AI SEARCHES DATABASE (NEVER EMPTY) ---------- */
-
-    if (!ai) {
-      return res.json({
-        success: true,
-        reply:
-          "I can help you choose products if you tell me your concern like skin, hair, or body care."
-      });
-    }
-
-    // 🔑 IMPORTANT: AI gets FULL PRODUCT DB (trimmed)
-    const aiContextProducts = products.slice(0, 10);
-
-    let aiReply;
-
-    try {
-      const payload = `
-PRODUCT_DATA:
-${JSON.stringify(aiContextProducts, null, 2)}
-
-USER_QUERY:
-${message}
-
-TASK:
-Search the product data and recommend suitable products.
-Follow system rules strictly.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-lite",
-        contents: payload,
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          temperature: 0.2,
-          maxOutputTokens: 400
-        }
-      });
-
-      aiReply =
-        response.text ||
-        response.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    } catch (err) {
-      console.error("Gemini error:", err);
-    }
-
-    if (!aiReply) {
-      return res.json({
-        success: true,
-        reply:
-          "I’m currently handling many requests. Please try again or browse our products."
-      });
-    }
-
+    /* ---------- STEP 4: FALLBACK (NO MORE AI) ---------- */
     return res.json({
       success: true,
-      isAi: true,
-      reply: aiReply.split("\n").slice(0, 10).join("\n")
+      reply: "I'm having trouble finding a specific product for that. Could you tell me more about your skin type or concern (e.g., 'I have dry skin' or 'I want a serum')?"
     });
 
   } catch (err) {

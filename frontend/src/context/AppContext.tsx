@@ -6,6 +6,7 @@ import {
   ReactNode,
   useCallback,
 } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -16,18 +17,20 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
-import { CartItem, Product, Page, User, AuthStatus } from '../types';
+import { CartItem, Product, Page, User, AuthStatus, Order } from '../types';
 
 /* ================================
    Types
 ================================ */
 
-export interface Order {
-  _id: string;
-  items: { product: Product; quantity: number }[];
-  totalAmount: number;
-  status: string;
-  createdAt: string;
+export interface ShippingDetails {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
 }
 
 interface AppContextType {
@@ -47,19 +50,28 @@ interface AppContextType {
   user: User | null;
   authStatus: AuthStatus;
 
+  isChatOpen: boolean;
+  setIsChatOpen: (isOpen: boolean) => void;
+  toggleChat: () => void;
+
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (e: string, p: string) => Promise<void>;
   signUpWithEmail: (e: string, p: string, n: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUserProfile: (data: Partial<User>) => Promise<void>;
 
   getAuthHeaders: () => Promise<HeadersInit>;
 
   navigateTo: (page: Page, pid?: string) => void;
   setShopFilter: (f: 'all' | 'skin' | 'hair' | 'other') => void;
 
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (pid: string) => void;
   updateQuantity: (pid: string, qty: number) => void;
+
+  checkout: (shippingDetails: ShippingDetails) => Promise<Order>;
+  cancelOrder: (orderId: string) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
 
   toggleWishlist: (product: Product) => void;
   isInWishlist: (pid: string) => boolean;
@@ -78,6 +90,9 @@ const USER_BASE = `${API_BASE}/user`;
 ================================ */
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +111,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [user, setUser] = useState<User | null>(null);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const toggleChat = useCallback(() => setIsChatOpen(prev => !prev), []);
 
   /* =============================
      Auth headers
@@ -125,8 +143,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       setWishlist(data?.wishlist ?? []);
       setCartItems(data?.cart ?? []);
-      setOrders(data?.orders ?? []);
+
+      // Filter out nulls that occur when populated references are physically/soft deleted
+      const validOrders = (data?.orders ?? []).filter((o: any) => o !== null);
+      setOrders(validOrders);
+
       setRecentlyBought(data?.recentlyBought ?? []);
+
+      setUser(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          phone: data?.phone,
+          address: data?.address,
+          city: data?.city,
+          state: data?.state,
+          pincode: data?.pincode,
+        };
+      });
     } catch (err) {
       console.error('Profile sync failed', err);
     }
@@ -185,6 +219,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     navigateTo('home');
   };
 
+  const updateUserProfile = async (updateData: Partial<User>) => {
+    if (authStatus !== 'authenticated') return;
+
+    const headers = await getAuthHeaders();
+    const res = await fetch(USER_BASE, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(updateData)
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to update profile");
+    }
+
+    const { data } = await res.json();
+    setUser(prev => prev ? { ...prev, ...data } : null);
+  };
+
   /* =============================
      Products
   ============================== */
@@ -205,10 +257,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* =============================
      Navigation
   ============================== */
+  useEffect(() => {
+    const path = location.pathname.substring(1) || 'home';
+    setCurrentPage(path as Page);
+  }, [location.pathname]);
+
   const navigateTo = (page: Page, pid?: string) => {
     setCurrentPage(page);
     setSelectedProductPid(pid ?? null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (page === 'home') {
+      navigate('/');
+    } else {
+      navigate(`/${page}`);
+    }
   };
 
   /* =============================
@@ -232,20 +294,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, quantity: number = 1) => {
     if (!product) return;
 
     let nextCart: CartItem[] = [];
     setCartItems(prev => {
-      nextCart = [...prev];
-      const idx = nextCart.findIndex(
-        i => i.product && i.product.pid === product.pid
-      );
+      let isMutated = false;
+      const newItems = prev.map(i => {
+        if (i.product && i.product.pid === product.pid) {
+          isMutated = true;
+          return { ...i, quantity: (i.quantity ?? 0) + quantity };
+        }
+        return i;
+      });
 
-      if (idx >= 0) nextCart[idx].quantity++;
-      else nextCart.push({ product, quantity: 1 });
+      if (!isMutated) {
+        newItems.push({ product, quantity });
+      }
 
-      return nextCart;
+      nextCart = newItems;
+      return newItems;
     });
 
     setTimeout(() => syncCartToBackend(nextCart), 0);
@@ -271,6 +339,70 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return nextCart;
     });
     setTimeout(() => syncCartToBackend(nextCart), 0);
+  };
+
+  const checkout = async (shippingDetails: ShippingDetails): Promise<Order> => {
+    if (authStatus !== 'authenticated' || cartItems.length === 0) {
+      throw new Error("Cannot checkout");
+    }
+
+    const headers = await getAuthHeaders();
+
+    // Prepare items for backend
+    const items = cartItems
+      .filter(i => i.product && (i.product as any)._id)
+      .map(i => ({
+        productId: (i.product as any)._id,
+        quantity: i.quantity,
+      }));
+
+    const response = await fetch(`${API_BASE}/orders`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ items, shippingDetails }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to checkout");
+    }
+
+    const json = await response.json();
+
+    // Clear cart locally and on backend
+    setCartItems([]);
+    await syncCartToBackend([]);
+
+    // Update local orders
+    setOrders(prev => [json.data, ...prev]);
+
+    return json.data;
+  };
+
+  const cancelOrder = async (orderId: string) => {
+    if (authStatus !== 'authenticated') return;
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
+      method: 'PATCH',
+      headers,
+    });
+    if (!res.ok) throw new Error('Failed to cancel order');
+
+    // Update local order status to cancelled
+    setOrders(prev => prev.map(o => o._id === orderId ? { ...o, orderStatus: 'cancelled' } : o));
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    if (authStatus !== 'authenticated') return;
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/orders/${orderId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (!res.ok) throw new Error('Failed to delete order');
+
+    // Remove from local orders
+    setOrders(prev => prev.filter(o => o._id !== orderId));
   };
 
   /* =============================
@@ -307,7 +439,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
      Derived values (CRASH FIX)
   ============================== */
   const cartCount = cartItems.reduce(
-    (sum, i) => sum + (i.quantity ?? 0),
+    (sum, i) => sum + (i.product ? (i.quantity ?? 0) : 0),
     0
   );
 
@@ -335,16 +467,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         signInWithEmail,
         signUpWithEmail,
         logout,
+        updateUserProfile,
         getAuthHeaders,
         navigateTo,
         setShopFilter,
         addToCart,
         removeFromCart,
         updateQuantity,
+        checkout,
+        cancelOrder,
+        deleteOrder,
         toggleWishlist,
         isInWishlist,
         cartCount,
         cartTotal,
+        isChatOpen,
+        setIsChatOpen,
+        toggleChat,
       }}
     >
       {children}

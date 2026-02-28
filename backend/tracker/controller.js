@@ -64,7 +64,7 @@ export const createOrder = async (req, res) => {
           totalAmount,
           paymentMethod: finalPaymentMethod,
           paymentStatus: finalPaymentMethod === "cod" ? "pending" : "pending",
-          orderStatus: "processing",
+          orderStatus: finalPaymentMethod === "cod" ? "processing" : "pending",
           shippingDetails,
         },
       ],

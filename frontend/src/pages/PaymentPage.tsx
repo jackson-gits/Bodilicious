@@ -128,9 +128,14 @@ export default function PaymentPage() {
                         color: "#8B0000",
                     },
                     modal: {
-                        ondismiss: function () {
+                        ondismiss: async function () {
                             setIsProcessing(false);
-                            alert("Payment cancelled. You can try again from your orders page.");
+                            try {
+                                await cancelOrder(razorpayOrder.receipt.replace('rcpt_', ''));
+                            } catch (e) {
+                                console.error("Failed to quickly cancel order", e);
+                            }
+                            alert("Payment cancelled. The pending order has been cancelled.");
                             navigateTo('account');
                         }
                     }

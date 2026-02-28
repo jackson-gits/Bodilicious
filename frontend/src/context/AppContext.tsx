@@ -85,7 +85,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
-const API_BASE = 'http://localhost:5000/api/v1';
+const API_BASE = `${import.meta.env.VITE_API_URL}/api/v1`;
 const USER_BASE = `${API_BASE}/user`;
 
 /* ================================
@@ -500,6 +500,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         removeFromCart,
         updateQuantity,
         checkout,
+        verifyPayment,
         cancelOrder,
         deleteOrder,
         toggleWishlist,

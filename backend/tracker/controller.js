@@ -3,11 +3,13 @@ import Order from "./models.js";
 import Product from "../products/models.js";
 import UserProfile from "../profile/models.js";
 import { getShiprocketToken } from "./shiprocketservice.js";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 
 
 
 /* =========================================================
-   CREATE ORDER (Transaction + Shiprocket Integration)
+   CREATE ORDER (Transaction + Shiprocket/Razorpay Integration)
 ========================================================= */
 
 export const createOrder = async (req, res) => {
@@ -15,7 +17,7 @@ export const createOrder = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { items, shippingDetails } = req.body;
+    const { items, shippingDetails, paymentMethod } = req.body;
     const userId = req.user._id;
 
     if (!items || items.length === 0) {
@@ -51,6 +53,8 @@ export const createOrder = async (req, res) => {
       await product.save({ session });
     }
 
+    const finalPaymentMethod = paymentMethod || "cod";
+
     // 🔹 Create Order in MongoDB
     const [order] = await Order.create(
       [
@@ -58,7 +62,8 @@ export const createOrder = async (req, res) => {
           user: userId,
           items: orderItems,
           totalAmount,
-          paymentStatus: "paid",
+          paymentMethod: finalPaymentMethod,
+          paymentStatus: finalPaymentMethod === "cod" ? "pending" : "pending",
           orderStatus: "processing",
           shippingDetails,
         },
@@ -72,125 +77,155 @@ export const createOrder = async (req, res) => {
       { session }
     );
 
+    /* =========================================================
+       RAZORPAY INTEGRATION FOR PREPAID ORDERS
+    ========================================================= */
+    let razorpayOrderData = null;
+
+    if (finalPaymentMethod === "razorpay") {
+      try {
+        const razorpayInstance = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
+
+        const options = {
+          amount: totalAmount * 100, // amount in the smallest currency unit (paise)
+          currency: "INR",
+          receipt: `rcpt_${order._id}`,
+        };
+
+        const razorpayOrder = await razorpayInstance.orders.create(options);
+
+        order.razorpayOrderId = razorpayOrder.id;
+        await order.save({ session });
+
+        razorpayOrderData = razorpayOrder;
+      } catch (err) {
+        throw new Error("Razorpay order creation failed: " + err.message);
+      }
+    }
+
     await session.commitTransaction();
     session.endSession();
 
-
-
     /* =========================================================
        SHIPROCKET INTEGRATION (Non-blocking)
+       Trigger only if COD. For Razorpay, trigger after payment verification.
     ========================================================= */
 
-    try {
-      if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
+    if (finalPaymentMethod === "cod") {
+      try {
+        if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
 
-        // Let's get the token
-        const token = await getShiprocketToken();
+          // Let's get the token
+          const token = await getShiprocketToken();
 
-        // Map items
-        const shiprocketItems = await Promise.all(
-          items.map(async (item) => {
-            const product = await Product.findById(item.productId);
-            return {
-              name: product.name,
-              sku: product.pid || product._id.toString(),
-              units: item.quantity,
-              selling_price: product.price,
-              discount: 0,
-              tax: 0,
-              hsn: "33049910",
-            };
-          })
-        );
+          // Map items
+          const shiprocketItems = await Promise.all(
+            items.map(async (item) => {
+              const product = await Product.findById(item.productId);
+              return {
+                name: product.name,
+                sku: product.pid || product._id.toString(),
+                units: item.quantity,
+                selling_price: product.price,
+                discount: 0,
+                tax: 0,
+                hsn: "33049910",
+              };
+            })
+          );
 
-        // Format to pass strict Shiprocket validation
-        const safePhone = (shippingDetails.phone || "").replace(/\D/g, "");
-        const finalPhone = safePhone.length >= 10 ? safePhone.slice(-10) : "9999999999";
+          // Format to pass strict Shiprocket validation
+          const safePhone = (shippingDetails.phone || "").replace(/\D/g, "");
+          const finalPhone = safePhone.length >= 10 ? safePhone.slice(-10) : "9999999999";
 
-        const safePincode = (shippingDetails.pincode || "").replace(/\D/g, "");
-        const finalPincode = safePincode.length === 6 ? safePincode : "110001";
+          const safePincode = (shippingDetails.pincode || "").replace(/\D/g, "");
+          const finalPincode = safePincode.length === 6 ? safePincode : "110001";
 
-        const nameParts = (shippingDetails.name || "").trim().split(" ");
-        const firstName = nameParts[0] || "Customer";
-        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "User";
+          const nameParts = (shippingDetails.name || "").trim().split(" ");
+          const firstName = nameParts[0] || "Customer";
+          const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "User";
 
-        const payload = {
-          order_id: order._id.toString(),
-          order_date: new Date().toISOString().split("T")[0],
-          pickup_location: "Home",
-          billing_customer_name: firstName,
-          billing_last_name: lastName,
-          billing_address: shippingDetails.address || "No Address Provided",
-          billing_city: shippingDetails.city || "Delhi",
-          billing_pincode: finalPincode,
-          billing_state: shippingDetails.state || "Delhi",
-          billing_country: "India",
-          billing_email: shippingDetails.email || "customer@bodilicious.in",
-          billing_phone: finalPhone,
-          shipping_is_billing: true,
-          order_items: shiprocketItems,
-          payment_method: "Prepaid",
-          sub_total: totalAmount,
-          length: 10,
-          breadth: 10,
-          height: 10,
-          weight: 0.5,
-        };
+          const payload = {
+            order_id: order._id.toString(),
+            order_date: new Date().toISOString().split("T")[0],
+            pickup_location: "Home",
+            billing_customer_name: firstName,
+            billing_last_name: lastName,
+            billing_address: shippingDetails.address || "No Address Provided",
+            billing_city: shippingDetails.city || "Delhi",
+            billing_pincode: finalPincode,
+            billing_state: shippingDetails.state || "Delhi",
+            billing_country: "India",
+            billing_email: shippingDetails.email || "customer@bodilicious.in",
+            billing_phone: finalPhone,
+            shipping_is_billing: true,
+            order_items: shiprocketItems,
+            payment_method: "COD",
+            sub_total: totalAmount,
+            length: 10,
+            breadth: 10,
+            height: 10,
+            weight: 0.5,
+          };
 
-        const createRes = await fetch(
-          "https://apiv2.shiprocket.in/v1/external/orders/create/adhoc",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-          }
-        );
-
-        if (createRes.ok) {
-          const data = await createRes.json();
-          const shipmentId = data.shipment_id;
-          const shiprocketOrderId = data.order_id;
-
-          if (shipmentId) {
-            // Save shipmentId and shiprocketOrderId immediately
-            await Order.findByIdAndUpdate(order._id, { shipmentId, shiprocketOrderId });
-
-            const awbRes = await fetch(
-              "https://apiv2.shiprocket.in/v1/external/courier/assign/awb",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ shipment_id: shipmentId }),
-              }
-            );
-
-            if (awbRes.ok) {
-              const awbData = await awbRes.json();
-              const awbCode = awbData?.response?.data?.awb_code || null;
-
-              if (awbCode) {
-                await Order.findByIdAndUpdate(order._id, {
-                  awb: awbCode,
-                });
-                order.awb = awbCode;
-              }
-            } else {
-              console.error("AWB Assignment failed:", await awbRes.text());
+          const createRes = await fetch(
+            "https://apiv2.shiprocket.in/v1/external/orders/create/adhoc",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(payload),
             }
+          );
+
+          if (createRes.ok) {
+            const data = await createRes.json();
+            const shipmentId = data.shipment_id;
+            const shiprocketOrderId = data.order_id;
+
+            if (shipmentId) {
+              // Save shipmentId and shiprocketOrderId immediately
+              await Order.findByIdAndUpdate(order._id, { shipmentId, shiprocketOrderId });
+
+              const awbRes = await fetch(
+                "https://apiv2.shiprocket.in/v1/external/courier/assign/awb",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ shipment_id: shipmentId }),
+                }
+              );
+
+              if (awbRes.ok) {
+                const awbData = await awbRes.json();
+                const awbCode = awbData?.response?.data?.awb_code || null;
+
+                if (awbCode) {
+                  await Order.findByIdAndUpdate(order._id, {
+                    awb: awbCode,
+                  });
+                  order.awb = awbCode;
+                }
+              } else {
+                console.error("AWB Assignment failed:", await awbRes.text());
+              }
+            }
+          } else {
+            const errText = await createRes.text();
+            console.error("Shiprocket Create Order Failed:", createRes.status, errText);
           }
-        } else {
-          const errText = await createRes.text();
-          console.error("Shiprocket Create Order Failed:", createRes.status, errText);
         }
+      } catch (shipErr) {
+        console.error("Shiprocket error:", shipErr.message);
       }
-    } catch (shipErr) {
-      console.error("Shiprocket error:", shipErr.message);
     }
 
     // Populate the newly created order so frontend receives product details
@@ -198,7 +233,10 @@ export const createOrder = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      data: populatedOrder,
+      data: {
+        order: populatedOrder,
+        razorpayOrder: razorpayOrderData
+      },
     });
 
   } catch (err) {

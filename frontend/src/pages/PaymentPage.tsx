@@ -4,8 +4,19 @@ import { useApp } from '../context/AppContext';
 import { Check, CreditCard, ShieldCheck, ChevronRight } from 'lucide-react';
 import Footer from '../components/Footer';
 
+// Load Razorpay Script dynamically
+const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+    });
+};
+
 export default function PaymentPage() {
-    const { cartItems, cartTotal, checkout, navigateTo } = useApp();
+    const { cartItems, cartTotal, checkout, verifyPayment, user, navigateTo } = useApp();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -30,6 +41,7 @@ export default function PaymentPage() {
         if (!shippingDetails) {
             navigate('/cart');
         }
+        loadRazorpayScript();
     }, [shippingDetails, navigate]);
 
     if (!shippingDetails) return null;
@@ -77,26 +89,67 @@ export default function PaymentPage() {
         if (!isFormValid) return;
 
         setIsProcessing(true);
-        // Simulate payment gateway delay
-        setTimeout(async () => {
-            try {
-                // Checkout through backend
-                await checkout(shippingDetails);
-                // Redirect to account/orders to act as confirmation
+
+        try {
+            const backendPaymentMethod = paymentMethod === 'cod' ? 'cod' : 'razorpay';
+            const { razorpayOrder } = await checkout(shippingDetails, backendPaymentMethod);
+
+            if (backendPaymentMethod === 'cod') {
                 navigateTo('account');
-            } catch (err: any) {
-                alert(err.message || 'Payment processing failed');
-            } finally {
-                setIsProcessing(false);
+            } else {
+                if (!razorpayOrder) {
+                    throw new Error("Razorpay order details not received");
+                }
+
+                // Initialize Razorpay
+                const options = {
+                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_dummy",
+                    amount: razorpayOrder.amount,
+                    currency: razorpayOrder.currency,
+                    name: "Bodilicious",
+                    description: "Premium Herbal Beauty",
+                    order_id: razorpayOrder.id,
+                    handler: async function (response: any) {
+                        try {
+                            await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
+                            navigateTo('account');
+                        } catch (err: any) {
+                            alert(err.message || 'Payment verification failed');
+                            setIsProcessing(false);
+                            navigateTo('account'); // Navigate anyway so they can see "failed" order
+                        }
+                    },
+                    prefill: {
+                        name: shippingDetails.name,
+                        email: shippingDetails.email || user?.email || "",
+                        contact: shippingDetails.phone,
+                    },
+                    theme: {
+                        color: "#8B0000",
+                    },
+                    modal: {
+                        ondismiss: function () {
+                            setIsProcessing(false);
+                            alert("Payment cancelled. You can try again from your orders page.");
+                            navigateTo('account');
+                        }
+                    }
+                };
+
+                const paymentObject = new (window as any).Razorpay(options);
+                paymentObject.open();
             }
-        }, 2000);
+        } catch (err: any) {
+            alert(err.message || 'Payment processing failed');
+            setIsProcessing(false);
+        }
     };
 
     const StepIndicator = ({ step, title, active, complete }: { step: number, title: string, active: boolean, complete: boolean }) => (
         <div className={`flex items-center gap-2 ${active ? 'text-dark-red' : complete ? 'text-green-700' : 'text-gray-300'}`}>
             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 ${active ? 'border-dark-red text-dark-red' :
-                    complete ? 'bg-green-700 border-green-700 text-white' :
-                        'border-gray-300 text-gray-300'
+                complete ? 'bg-green-700 border-green-700 text-white' :
+                    'border-gray-300 text-gray-300'
                 }`}>
                 {complete ? <Check size={12} strokeWidth={3} /> : step}
             </div>

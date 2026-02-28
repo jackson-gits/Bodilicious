@@ -2,6 +2,8 @@ import { Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import ProductCard from '../components/ProductCard';
 import Footer from '../components/Footer';
+import { m, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { fadeUpVariant, getAccessibleVariant, staggerContainerVariant } from '../utils/motionTokens';
 
 const categories = [
   { value: 'all', label: 'All Products' },
@@ -12,6 +14,9 @@ const categories = [
 
 export default function ShopPage() {
   const { shopFilter, setShopFilter, products, isLoading } = useApp();
+  const shouldReduceMotion = useReducedMotion();
+  const fadeUp = getAccessibleVariant(fadeUpVariant, !!shouldReduceMotion);
+  const stagger = getAccessibleVariant(staggerContainerVariant, !!shouldReduceMotion);
 
   if (isLoading) {
     return (
@@ -30,14 +35,19 @@ export default function ShopPage() {
   return (
     <div className="bg-white min-h-screen">
       <div className="bg-silk-light pt-28 pb-10 px-6">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-2">
+        <m.div
+          className="max-w-7xl mx-auto"
+          initial="hidden"
+          animate="visible"
+          variants={stagger}
+        >
+          <m.p variants={fadeUp} className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-2">
             Collection
-          </p>
-          <h1 className="font-serif text-dark-red text-4xl md:text-5xl">
+          </m.p>
+          <m.h1 variants={fadeUp} className="font-serif text-dark-red text-4xl md:text-5xl">
             {categories.find(c => c.value === shopFilter)?.label ?? 'All Products'}
-          </h1>
-        </div>
+          </m.h1>
+        </m.div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-10">
@@ -47,8 +57,8 @@ export default function ShopPage() {
               key={cat.value}
               onClick={() => setShopFilter(cat.value)}
               className={`px-5 py-2 text-xs font-sans tracking-widest uppercase transition-all duration-200 border ${shopFilter === cat.value
-                  ? 'bg-dark-red text-silk border-dark-red'
-                  : 'bg-white text-dark-red/60 border-silk hover:border-dark-red hover:text-dark-red'
+                ? 'bg-dark-red text-silk border-dark-red'
+                : 'bg-white text-dark-red/60 border-silk hover:border-dark-red hover:text-dark-red'
                 }`}
             >
               {cat.label}
@@ -59,11 +69,25 @@ export default function ShopPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {filtered.map(product => (
-            <ProductCard key={product.pid} product={product} />
-          ))}
-        </div>
+        <m.div
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
+          layout
+        >
+          <AnimatePresence mode="popLayout">
+            {filtered.map(product => (
+              <m.div
+                key={product.pid}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ProductCard product={product} />
+              </m.div>
+            ))}
+          </AnimatePresence>
+        </m.div>
       </div>
 
       <div className="mt-10">

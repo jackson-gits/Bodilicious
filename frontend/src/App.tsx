@@ -1,5 +1,6 @@
 import { AppProvider } from './context/AppContext';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { LazyMotion, domAnimation, AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
@@ -13,38 +14,41 @@ import PaymentPage from './pages/PaymentPage';
 import ShippingPage from './pages/ShippingPage';
 import ChatPage from './pages/ChatPage';
 import GenericStaticPage from './pages/GenericStaticPage';
+import PageTransition from './components/PageTransition';
 
 function AppRoutes() {
+  const location = useLocation();
 
   return (
     <>
       <Navbar />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/shop" element={<ShopPage />} />
-        <Route path="/product" element={<ProductPage />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/wishlist" element={<WishlistPage />} />
-        <Route path="/account" element={<AccountPage />} />
-        <Route path="/tracking" element={<TrackingPage />} />
-        <Route path="/shipping" element={<ShippingPage />} />
-        <Route path="/payment" element={<PaymentPage />} />
-        <Route path="/chat" element={<ChatPage />} />
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+          <Route path="/home" element={<PageTransition><HomePage /></PageTransition>} />
+          <Route path="/shop" element={<PageTransition><ShopPage /></PageTransition>} />
+          <Route path="/product" element={<PageTransition><ProductPage /></PageTransition>} />
+          <Route path="/cart" element={<PageTransition><CartPage /></PageTransition>} />
+          <Route path="/wishlist" element={<PageTransition><WishlistPage /></PageTransition>} />
+          <Route path="/payment" element={<PageTransition><PaymentPage /></PageTransition>} />
+          <Route path="/chat" element={<PageTransition><ChatPage /></PageTransition>} />
+          <Route path="/signin" element={<PageTransition><SignInPage /></PageTransition>} />
+          <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
+          <Route path="/tracking" element={<PageTransition><TrackingPage /></PageTransition>} />
+          <Route path="/shipping" element={<PageTransition><ShippingPage /></PageTransition>} />
 
-        {/* Static Pages */}
-        <Route path="/contact" element={<GenericStaticPage />} />
-        <Route path="/shipping" element={<GenericStaticPage />} />
-        <Route path="/faqs" element={<GenericStaticPage />} />
-        <Route path="/stores" element={<GenericStaticPage />} />
-        <Route path="/terms-sale" element={<GenericStaticPage />} />
-        <Route path="/terms-use" element={<GenericStaticPage />} />
-        <Route path="/accessibility" element={<GenericStaticPage />} />
-        <Route path="/privacy" element={<GenericStaticPage />} />
-        <Route path="/careers" element={<GenericStaticPage />} />
-        <Route path="/students" element={<GenericStaticPage />} />
-      </Routes>
+          {/* Static Pages */}
+          <Route path="/contact" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/faqs" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/stores" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/terms-sale" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/terms-use" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/accessibility" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/privacy" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/careers" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/students" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+        </Routes>
+      </AnimatePresence>
     </>
   );
 }
@@ -52,7 +56,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <AppProvider>
-      <AppRoutes />
+      <LazyMotion features={domAnimation} strict>
+        <AppRoutes />
+      </LazyMotion>
     </AppProvider>
   );
 }

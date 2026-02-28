@@ -4,6 +4,8 @@ import { Product } from '../types';
 import { useApp } from '../context/AppContext';
 import { Link } from 'react-router-dom';
 import StarRating from './StarRating';
+import { m, useReducedMotion } from 'framer-motion';
+import { hoverLift, hoverLiftSubtle, getAccessibleVariant } from '../utils/motionTokens';
 
 interface ProductCardProps {
   product: Product;
@@ -13,25 +15,35 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
   const { navigateTo, addToCart, toggleWishlist, isInWishlist } = useApp();
   const inWishlist = isInWishlist(product.pid);
 
+  const shouldReduceMotion = useReducedMotion();
+  const lift = shouldReduceMotion ? {} : hoverLift;
+  const subtleLift = shouldReduceMotion ? {} : hoverLiftSubtle;
+
   return (
-    <div className="group relative bg-white">
+    <m.div
+      className="group relative bg-white transition-shadow hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] rounded-sm"
+      whileHover={lift}
+      layout // enable smooth layout transitions when filtering the shop grid
+    >
       <Link
         to={`/product?id=${product.pid}`}
         onClick={(e) => {
           e.preventDefault();
           navigateTo('product', product.pid);
         }}
-        className="relative overflow-hidden cursor-pointer bg-silk-light aspect-[3/4] block"
+        className="relative overflow-hidden cursor-pointer bg-silk-light aspect-[3/4] block rounded-sm"
       >
-        <img
+        <m.img
+          whileHover={subtleLift}
           src={product.images[0]}
           alt={product.name}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-dark-red/0 group-hover:bg-dark-red/5 transition-colors duration-300" />
 
         <button
           onClick={e => {
+            e.preventDefault();
             e.stopPropagation();
             toggleWishlist(product);
           }}
@@ -44,12 +56,12 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
         </button>
 
         {product.stock <= 5 && product.stock > 0 && (
-          <div className="absolute top-3 left-3 bg-indian-red text-white text-[10px] font-sans tracking-widest uppercase px-2 py-1">
+          <div className="absolute top-3 left-3 bg-indian-red text-white text-[10px] font-sans tracking-widest uppercase px-2 py-1 rounded-sm">
             Low Stock
           </div>
         )}
         {product.stock === 0 && (
-          <div className="absolute top-3 left-3 bg-dark-red text-silk text-[10px] font-sans tracking-widest uppercase px-2 py-1">
+          <div className="absolute top-3 left-3 bg-dark-red text-silk text-[10px] font-sans tracking-widest uppercase px-2 py-1 rounded-sm">
             Sold Out
           </div>
         )}
@@ -68,7 +80,7 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
         </button>
       </Link>
 
-      <div className="pt-3 pb-1">
+      <div className="pt-3 pb-1 px-1">
         <Link
           to={`/product?id=${product.pid}`}
           onClick={(e) => {
@@ -91,6 +103,6 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
           </span>
         </div>
       </div>
-    </div>
+    </m.div>
   );
 });

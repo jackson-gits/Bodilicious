@@ -8,6 +8,8 @@ import {
   Plus,
   Loader2,
 } from 'lucide-react';
+import { m, useReducedMotion } from 'framer-motion';
+import { fadeUpVariant, staggerContainerVariant, getAccessibleVariant } from '../utils/motionTokens';
 import { useApp } from '../context/AppContext';
 import StarRating from '../components/StarRating';
 import Footer from '../components/Footer';
@@ -23,6 +25,10 @@ export default function ProductPage() {
     isInWishlist,
     navigateTo,
   } = useApp();
+
+  const shouldReduceMotion = useReducedMotion();
+  const fadeUp = getAccessibleVariant(fadeUpVariant, !!shouldReduceMotion);
+  const stagger = getAccessibleVariant(staggerContainerVariant, !!shouldReduceMotion);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,9 +128,14 @@ export default function ProductPage() {
           <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Back to shop
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+        <m.div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20"
+          initial="hidden"
+          animate="visible"
+          variants={stagger}
+        >
           {/* Images Section */}
-          <div className="flex flex-col-reverse md:flex-row gap-4 lg:gap-6">
+          <m.div variants={fadeUp} className="flex flex-col-reverse md:flex-row gap-4 lg:gap-6">
             {/* Thumbnails */}
             {product.images.length > 1 && (
               <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto md:w-20 lg:w-24 shrink-0 pb-2 md:pb-0 scrollbar-hide">
@@ -166,34 +177,34 @@ export default function ProductPage() {
                 </div>
               )}
             </div>
-          </div>
+          </m.div>
 
           {/* Product Details Section */}
-          <div className="flex flex-col py-2">
-            <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-3">
+          <m.div variants={fadeUp} className="flex flex-col py-2">
+            <m.p variants={fadeUp} className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-3">
               {product.type === 'skin' ? 'Skin Care' : product.type === 'hair' ? 'Hair Care' : 'Body Care'}
-            </p>
+            </m.p>
 
-            <h1 className="text-4xl md:text-5xl font-serif text-dark-red mb-4 leading-tight">
+            <m.h1 variants={fadeUp} className="text-4xl md:text-5xl font-serif text-dark-red mb-4 leading-tight">
               {product.name}
-            </h1>
+            </m.h1>
 
-            <div className="flex items-center gap-3 mb-8">
+            <m.div variants={fadeUp} className="flex items-center gap-3 mb-8">
               <StarRating rating={product.rating ?? 0} size={15} />
               <span className="text-xs font-sans text-grey-beige">
                 ({product.ratingCount ?? 0} reviews)
               </span>
-            </div>
+            </m.div>
 
-            <p className="text-2xl font-sans text-dark-red mb-8">
+            <m.p variants={fadeUp} className="text-2xl font-sans text-dark-red mb-8">
               ₹{product.price.toLocaleString('en-IN')}
-            </p>
+            </m.p>
 
-            <p className="text-dark-red/80 font-sans text-sm leading-relaxed mb-10">
+            <m.p variants={fadeUp} className="text-dark-red/80 font-sans text-sm leading-relaxed mb-10">
               {product.description}
-            </p>
+            </m.p>
 
-            <div className="mt-auto border-t border-silk pt-10">
+            <m.div variants={fadeUp} className="mt-auto border-t border-silk pt-10">
               {product.stock > 0 ? (
                 <div className="flex flex-col sm:flex-row gap-4 mb-4">
                   {/* Quantity Selector */}
@@ -246,12 +257,18 @@ export default function ProductPage() {
                     ? 'In stock and ready to ship'
                     : 'We are restocking soon'}
               </p>
-            </div>
-          </div>
-        </div>
+            </m.div>
+          </m.div>
+        </m.div>
 
         {/* Tabbed Info Section */}
-        <div className="mt-32 max-w-4xl mx-auto">
+        <m.div
+          className="mt-32 max-w-4xl mx-auto"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={fadeUp}
+        >
           <div className="flex border-b border-silk mb-10 overflow-x-auto scrollbar-hide">
             {(['ingredients', 'uses', 'symptoms'] as const).map(tab => (
               <button
@@ -302,21 +319,27 @@ export default function ProductPage() {
               </div>
             )}
           </div>
-        </div>
+        </m.div>
 
         {/* Reviews Section */}
         {product.reviews && product.reviews.length > 0 && (
-          <div className="mt-32 max-w-5xl mx-auto">
-            <div className="text-center mb-16">
+          <m.div
+            className="mt-32 max-w-5xl mx-auto"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={stagger}
+          >
+            <m.div variants={fadeUp} className="text-center mb-16">
               <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-3">
                 Real Results
               </p>
               <h2 className="font-serif text-dark-red text-3xl md:text-4xl">Customer Reviews</h2>
-            </div>
+            </m.div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {product.reviews.map((review, idx) => (
-                <div key={idx} className="bg-silk-light p-8 lg:p-10 border border-silk/30 hover:border-silk transition-colors">
+                <m.div key={idx} variants={fadeUp} className="bg-silk-light p-8 lg:p-10 border border-silk/30 hover:border-silk transition-colors">
                   <StarRating rating={review.rating} size={14} />
                   <p className="font-sans text-dark-red/80 text-sm leading-relaxed mt-5 mb-8 italic">
                     "{review.comment}"
@@ -327,16 +350,22 @@ export default function ProductPage() {
                       {"createdAt" in review ? (review as { createdAt?: string }).createdAt : "Verified Buyer"}
                     </p>
                   </div>
-                </div>
+                </m.div>
               ))}
             </div>
-          </div>
+          </m.div>
         )}
 
         {/* Related Products */}
         {related.length > 0 && (
-          <div className="mt-40">
-            <div className="flex items-end justify-between mb-12 border-b border-silk pb-6">
+          <m.div
+            className="mt-40"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={stagger}
+          >
+            <m.div variants={fadeUp} className="flex items-end justify-between mb-12 border-b border-silk pb-6">
               <div>
                 <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-2">
                   Complete your ritual
@@ -349,11 +378,13 @@ export default function ProductPage() {
               >
                 View all <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </button>
-            </div>
+            </m.div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {related.map(p => (
-                <ProductCard key={p.pid} product={p} />
+                <m.div key={p.pid} variants={fadeUp}>
+                  <ProductCard product={p} />
+                </m.div>
               ))}
             </div>
 
@@ -365,7 +396,7 @@ export default function ProductPage() {
                 View all <ChevronRight size={14} />
               </button>
             </div>
-          </div>
+          </m.div>
         )}
       </div>
 

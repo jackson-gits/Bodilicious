@@ -69,7 +69,10 @@ interface AppContextType {
   removeFromCart: (pid: string) => void;
   updateQuantity: (pid: string, qty: number) => void;
 
-  checkout: (shippingDetails: ShippingDetails) => Promise<Order>;
+  // Modified checkout function to return razorpayOrder
+  checkout: (shippingDetails: ShippingDetails, paymentMethod: string) => Promise<{ order: Order, razorpayOrder: any }>;
+  verifyPayment: (razorpay_order_id: string, razorpay_payment_id: string, razorpay_signature: string) => Promise<void>;
+
   cancelOrder: (orderId: string) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
 
@@ -341,7 +344,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTimeout(() => syncCartToBackend(nextCart), 0);
   };
 
-  const checkout = async (shippingDetails: ShippingDetails): Promise<Order> => {
+  const checkout = async (shippingDetails: ShippingDetails, paymentMethod: string): Promise<{ order: Order, razorpayOrder: any }> => {
     if (authStatus !== 'authenticated' || cartItems.length === 0) {
       throw new Error("Cannot checkout");
     }
@@ -359,7 +362,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const response = await fetch(`${API_BASE}/orders`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ items, shippingDetails }),
+      body: JSON.stringify({ items, shippingDetails, paymentMethod }),
     });
 
     if (!response.ok) {
@@ -368,15 +371,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const json = await response.json();
+    const { order, razorpayOrder } = json.data;
 
     // Clear cart locally and on backend
     setCartItems([]);
     await syncCartToBackend([]);
 
     // Update local orders
-    setOrders(prev => [json.data, ...prev]);
+    setOrders(prev => [order, ...prev]);
 
-    return json.data;
+    return { order, razorpayOrder };
+  };
+
+  const verifyPayment = async (razorpay_order_id: string, razorpay_payment_id: string, razorpay_signature: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/payment/verify`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+      })
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Payment verification failed");
+    }
+
+    // Update the local order to show the newly confirmed paid status
+    setOrders(prev => prev.map(o => o.razorpayOrderId === razorpay_order_id ? { ...o, paymentStatus: 'paid' } : o));
   };
 
   const cancelOrder = async (orderId: string) => {

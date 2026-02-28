@@ -66,6 +66,11 @@ export const createOrderSchema = z
       .array(orderItemSchema)
       .min(1, "At least one item is required"),
 
+    paymentMethod: z
+      .enum(["cod", "razorpay"])
+      .optional()
+      .default("cod"),
+
     shippingDetails: shippingDetailsSchema,
   })
   .strict();

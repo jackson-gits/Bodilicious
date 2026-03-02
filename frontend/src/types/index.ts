@@ -27,7 +27,7 @@ export interface CartItem {
   quantity: number;
 }
 
-export type Page = 'home' | 'shop' | 'product' | 'signin' | 'signup' | 'cart' | 'wishlist' | 'account' | 'tracking' | 'chat' | 'payment' | 'shipping';
+export type Page = 'home' | 'shop' | 'product' | 'signin' | 'signup' | 'cart' | 'wishlist' | 'account' | 'tracking' | 'order-details' | 'chat' | 'payment' | 'shipping' | 'confirmation';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -53,12 +53,17 @@ export interface TimelineEvent {
 export interface Order {
   _id: string;
   awb: string | null;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
   totalAmount: number;
   orderStatus: string;
+  paymentMethod: string;
   paymentStatus: string;
   createdAt: string;
   shippingDetails: {
     name: string;
+    phone: string;
     address: string;
     city: string;
     state: string;

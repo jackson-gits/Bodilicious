@@ -250,6 +250,12 @@ export default function TrackingPage() {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => navigateTo('order-details', undefined, selectedOrder._id)}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-md transition-colors shadow-sm"
+                                    >
+                                        <FileText size={16} /> View Details
+                                    </button>
                                     {selectedOrder.orderStatus !== 'cancelled' && selectedOrder.orderStatus !== 'delivered' && selectedOrder.orderStatus !== 'shipped' && (
                                         <button
                                             onClick={handleCancelOrder}

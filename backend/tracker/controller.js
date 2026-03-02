@@ -407,6 +407,59 @@ export const getSingleOrder = async (req, res) => {
 
 
 /* =========================================================
+   UPDATE SHIPPING ADDRESS
+========================================================= */
+export const updateShippingAddress = async (req, res) => {
+  try {
+    const { name, email, phone, address, city, state, pincode } = req.body;
+
+    const order = await Order.findOne({
+      _id: req.params.orderId,
+      user: req.user._id,
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Usually you don't allow changing address if it's already shipped/delivered.
+    if (order.orderStatus === "shipped" || order.orderStatus === "delivered") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot update address for shipped/delivered orders.",
+      });
+    }
+
+    order.shippingDetails = {
+      ...order.shippingDetails,
+      name: name || order.shippingDetails?.name,
+      email: email || order.shippingDetails?.email,
+      phone: phone || order.shippingDetails?.phone,
+      address: address || order.shippingDetails?.address,
+      city: city || order.shippingDetails?.city,
+      state: state || order.shippingDetails?.state,
+      pincode: pincode || order.shippingDetails?.pincode,
+    };
+
+    await order.save();
+    const populatedOrder = await Order.findById(order._id).populate("items.product");
+
+    return res.json({
+      success: true,
+      data: populatedOrder,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+/* =========================================================
    CANCEL ORDER
 ========================================================= */
 export const cancelOrder = async (req, res) => {

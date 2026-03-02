@@ -16,20 +16,13 @@ const loadRazorpayScript = () => {
 };
 
 export default function PaymentPage() {
-    const { cartItems, cartTotal, checkout, verifyPayment, user, navigateTo } = useApp();
+    const { cartItems, cartTotal, checkout, verifyPayment, user, cancelOrder } = useApp();
     const location = useLocation();
     const navigate = useNavigate();
 
     const [paymentMethod, setPaymentMethod] = useState('card');
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Card details state
-    const [cardDetails, setCardDetails] = useState({
-        name: '',
-        number: '',
-        expiry: '',
-        cvv: ''
-    });
     const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
 
     // Retrieve shipping details from navigation state
@@ -50,59 +43,24 @@ export default function PaymentPage() {
     const shippingCost = cartTotal >= 999 ? 0 : 99;
     const total = cartTotal + shippingCost;
 
-    const isCardValid = () => {
-        return cardDetails.name.trim().length > 0 &&
-            cardDetails.number.replace(/\s/g, '').length === 16 &&
-            cardDetails.expiry.length === 5 &&
-            cardDetails.cvv.length >= 3;
-    };
-
-    const isFormValid = paymentMethod !== 'card' || isCardValid();
-
-    const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value.replace(/\D/g, '');
-        let formatted = val.match(/.{1,4}/g)?.join(' ') || val;
-        if (formatted.length <= 19) {
-            setCardDetails(prev => ({ ...prev, number: formatted }));
-        }
-    };
-
-    const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value.replace(/\D/g, '');
-        if (val.length >= 2) {
-            val = val.substring(0, 2) + '/' + val.substring(2, 4);
-        }
-        if (val.length <= 5) {
-            setCardDetails(prev => ({ ...prev, expiry: val }));
-        }
-    };
-
-    const handleCVVChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value.replace(/\D/g, '');
-        if (val.length <= 4) {
-            setCardDetails(prev => ({ ...prev, cvv: val }));
-        }
-    };
-
     const handlePlaceOrder = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isFormValid) return;
 
         setIsProcessing(true);
 
         try {
             const backendPaymentMethod = paymentMethod === 'cod' ? 'cod' : 'razorpay';
-            const { razorpayOrder } = await checkout(shippingDetails, backendPaymentMethod);
+            const { razorpayOrder, order } = await checkout(shippingDetails, backendPaymentMethod);
 
             if (backendPaymentMethod === 'cod') {
-                navigateTo('account');
+                navigate('/confirmation', { state: { orderId: order._id, status: 'success' } });
             } else {
                 if (!razorpayOrder) {
                     throw new Error("Razorpay order details not received");
                 }
 
                 // Initialize Razorpay
-                const options = {
+                const options: any = {
                     key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_dummy",
                     amount: razorpayOrder.amount,
                     currency: razorpayOrder.currency,
@@ -112,17 +70,18 @@ export default function PaymentPage() {
                     handler: async function (response: any) {
                         try {
                             await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
-                            navigateTo('account');
+                            navigate('/confirmation', { state: { orderId: order._id, status: 'success' } });
                         } catch (err: any) {
                             alert(err.message || 'Payment verification failed');
                             setIsProcessing(false);
-                            navigateTo('account'); // Navigate anyway so they can see "failed" order
+                            navigate('/confirmation', { state: { orderId: order._id, status: 'failed' } }); // Navigate anyway so they can see "failed" order
                         }
                     },
                     prefill: {
-                        name: shippingDetails.name,
-                        email: shippingDetails.email || user?.email || "",
-                        contact: shippingDetails.phone,
+                        name: shippingDetails.name || user?.displayName || "Customer",
+                        email: shippingDetails.email || user?.email || "customer@example.com",
+                        contact: shippingDetails.phone || "9999999999",
+                        method: paymentMethod === 'card' ? 'card' : paymentMethod === 'upi' ? 'upi' : paymentMethod === 'netbanking' ? 'netbanking' : undefined
                     },
                     theme: {
                         color: "#8B0000",
@@ -131,12 +90,12 @@ export default function PaymentPage() {
                         ondismiss: async function () {
                             setIsProcessing(false);
                             try {
-                                await cancelOrder(razorpayOrder.receipt.replace('rcpt_', ''));
+                                await cancelOrder(order._id);
                             } catch (e) {
                                 console.error("Failed to quickly cancel order", e);
                             }
                             alert("Payment cancelled. The pending order has been cancelled.");
-                            navigateTo('account');
+                            navigate('/confirmation', { state: { orderId: order._id, status: 'cancelled' } });
                         }
                     }
                 };
@@ -166,10 +125,10 @@ export default function PaymentPage() {
 
     return (
         <div className="min-h-screen bg-neutral-50 flex flex-col pt-24">
-            <div className="flex-1 max-w-6xl mx-auto w-full px-6 pb-16">
+            <div className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 pb-12">
 
                 {/* 1. Step Indicator */}
-                <div className="flex items-center justify-center mb-12 sm:mb-16">
+                <div className="flex items-center justify-center mb-10 sm:mb-12">
                     <div className="flex items-center gap-2 sm:gap-4">
                         <StepIndicator step={1} title="Bag" active={false} complete={true} />
                         <div className="w-8 sm:w-16 h-[1px] bg-gray-300"></div>
@@ -181,20 +140,20 @@ export default function PaymentPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
 
                     {/* 2. Left Section - Payment Form */}
                     <div className="lg:col-span-7">
-                        <h1 className="font-serif text-3xl text-dark-red mb-8">Payment Method</h1>
+                        <h1 className="font-serif text-2xl text-dark-red mb-6">Payment Method</h1>
 
-                        <form onSubmit={handlePlaceOrder} className="space-y-6">
+                        <form onSubmit={handlePlaceOrder} className="space-y-5">
 
                             {/* Payment Options Accordion */}
                             <div className="border border-silk rounded-sm overflow-hidden bg-white shadow-sm">
 
                                 {/* Credit/Debit Card */}
                                 <div className="border-b border-silk">
-                                    <label className="flex items-center p-5 cursor-pointer hover:bg-neutral-50 transition-colors">
+                                    <label className="flex items-center px-4 py-4 cursor-pointer hover:bg-neutral-50 transition-colors">
                                         <input
                                             type="radio"
                                             name="payment"
@@ -212,62 +171,11 @@ export default function PaymentPage() {
                                             </div>
                                         </div>
                                     </label>
-
-                                    {/* Card Details Form */}
-                                    <div className={`px-5 pb-5 transition-all duration-300 overflow-hidden \${paymentMethod === 'card' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0 p-0 hidden'}`}>
-                                        <div className="space-y-4 pt-4 border-t border-silk">
-                                            <div>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Cardholder Name"
-                                                    value={cardDetails.name}
-                                                    onChange={e => setCardDetails(prev => ({ ...prev, name: e.target.value }))}
-                                                    className="w-full p-3 border border-silk rounded-sm font-sans text-sm focus:outline-none focus:border-dark-red focus:ring-1 focus:ring-dark-red/20 transition-all bg-neutral-50"
-                                                />
-                                            </div>
-                                            <div>
-                                                <div className="relative">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Card Number"
-                                                        value={cardDetails.number}
-                                                        onChange={handleCardNumberChange}
-                                                        className="w-full p-3 pl-10 border border-silk rounded-sm font-sans text-sm focus:outline-none focus:border-dark-red focus:ring-1 focus:ring-dark-red/20 transition-all bg-neutral-50"
-                                                    />
-                                                    <CreditCard size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <input
-                                                    type="text"
-                                                    placeholder="MM/YY"
-                                                    value={cardDetails.expiry}
-                                                    onChange={handleExpiryChange}
-                                                    className="w-full p-3 border border-silk rounded-sm font-sans text-sm focus:outline-none focus:border-dark-red focus:ring-1 focus:ring-dark-red/20 transition-all bg-neutral-50"
-                                                />
-                                                <input
-                                                    type="password"
-                                                    placeholder="CVV"
-                                                    value={cardDetails.cvv}
-                                                    onChange={handleCVVChange}
-                                                    className="w-full p-3 border border-silk rounded-sm font-sans text-sm focus:outline-none focus:border-dark-red focus:ring-1 focus:ring-dark-red/20 transition-all bg-neutral-50"
-                                                />
-                                            </div>
-                                            <div className="pt-2">
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <div className="w-4 h-4 border border-silk rounded-sm flex items-center justify-center group-hover:border-dark-red transition-colors">
-                                                        <Check size={12} className="text-dark-red opacity-0 group-hover:opacity-100" />
-                                                    </div>
-                                                    <span className="font-sans text-xs text-gray-500">Save card for future purchases securely</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 {/* UPI */}
                                 <div className="border-b border-silk">
-                                    <label className="flex items-center p-5 cursor-pointer hover:bg-neutral-50 transition-colors">
+                                    <label className="flex items-center px-4 py-4 cursor-pointer hover:bg-neutral-50 transition-colors">
                                         <input
                                             type="radio"
                                             name="payment"
@@ -284,7 +192,7 @@ export default function PaymentPage() {
 
                                 {/* Net Banking */}
                                 <div className="border-b border-silk">
-                                    <label className="flex items-center p-5 cursor-pointer hover:bg-neutral-50 transition-colors">
+                                    <label className="flex items-center px-4 py-4 cursor-pointer hover:bg-neutral-50 transition-colors">
                                         <input
                                             type="radio"
                                             name="payment"
@@ -301,7 +209,7 @@ export default function PaymentPage() {
 
                                 {/* COD */}
                                 <div>
-                                    <label className="flex items-center p-5 cursor-pointer hover:bg-neutral-50 transition-colors">
+                                    <label className="flex items-center px-4 py-4 cursor-pointer hover:bg-neutral-50 transition-colors">
                                         <input
                                             type="radio"
                                             name="payment"
@@ -334,10 +242,10 @@ export default function PaymentPage() {
                             <div className="pt-4">
                                 <button
                                     type="submit"
-                                    disabled={!isFormValid || isProcessing}
-                                    className={`w-full py-4 text-silk font-sans text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all \${
-                                        !isFormValid || isProcessing 
-                                            ? 'bg-gray-300 cursor-not-allowed' 
+                                    disabled={isProcessing}
+                                    className={`w-full py-4 text-white font-sans text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all \${
+                                        isProcessing 
+                                            ? 'bg-gray-300 cursor-not-allowed text-gray-500' 
                                             : 'bg-dark-red hover:bg-ruby-red shadow-md hover:shadow-lg'
                                     }`}
                                 >
@@ -357,10 +265,10 @@ export default function PaymentPage() {
 
                     {/* 3. Right Section - Order Summary */}
                     <div className="lg:col-span-5 relative">
-                        <div className="sticky top-28 bg-white border border-silk p-6 shadow-sm rounded-sm">
-                            <h2 className="font-serif text-xl text-dark-red mb-6">Order Summary</h2>
+                        <div className="sticky top-28 bg-white border border-silk p-5 shadow-sm rounded-sm">
+                            <h2 className="font-serif text-xl text-dark-red mb-5">Order Summary</h2>
 
-                            <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
+                            <div className="space-y-4 mb-5 max-h-[300px] overflow-y-auto pr-2">
                                 {validCartItems.map((item, idx) => (
                                     <div key={idx} className="flex gap-4">
                                         <div className="w-16 h-20 bg-silk-light shrink-0">
@@ -395,9 +303,9 @@ export default function PaymentPage() {
                                 <span>₹{total.toLocaleString('en-IN')}</span>
                             </div>
 
-                            <div className="mt-8 flex items-center justify-center gap-2 text-green-700 bg-green-50/50 p-3 rounded-sm border border-green-100">
-                                <ShieldCheck size={18} />
-                                <span className="font-sans text-xs font-medium tracking-wide">100% Secure Payment. 256-bit SSL Encryption.</span>
+                            <div className="mt-6 flex items-center justify-center gap-2 text-green-700 bg-green-50/50 p-2.5 rounded-sm border border-green-100">
+                                <ShieldCheck size={16} />
+                                <span className="font-sans text-[11px] font-medium tracking-wide">100% Secure Payment. 256-bit SSL Encryption.</span>
                             </div>
                         </div>
                     </div>

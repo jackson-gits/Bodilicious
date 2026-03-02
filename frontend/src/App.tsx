@@ -10,9 +10,11 @@ import CartPage from './pages/CartPage';
 import WishlistPage from './pages/WishlistPage';
 import AccountPage from './pages/AccountPage';
 import TrackingPage from './pages/TrackingPage';
+import OrderDetailsPage from './pages/OrderDetailsPage';
 import PaymentPage from './pages/PaymentPage';
 import ShippingPage from './pages/ShippingPage';
 import ChatPage from './pages/ChatPage';
+import ConfirmationPage from './pages/ConfirmationPage';
 import GenericStaticPage from './pages/GenericStaticPage';
 import PageTransition from './components/PageTransition';
 
@@ -35,7 +37,9 @@ function AppRoutes() {
           <Route path="/signin" element={<PageTransition><SignInPage /></PageTransition>} />
           <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
           <Route path="/tracking" element={<PageTransition><TrackingPage /></PageTransition>} />
+          <Route path="/order-details" element={<PageTransition><OrderDetailsPage /></PageTransition>} />
           <Route path="/shipping" element={<PageTransition><ShippingPage /></PageTransition>} />
+          <Route path="/confirmation" element={<PageTransition><ConfirmationPage /></PageTransition>} />
 
           {/* Static Pages */}
           <Route path="/contact" element={<PageTransition><GenericStaticPage /></PageTransition>} />

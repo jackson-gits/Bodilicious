@@ -40,6 +40,7 @@ interface AppContextType {
 
   currentPage: Page;
   selectedProductPid: string | null;
+  selectedOrderId: string | null;
   shopFilter: 'all' | 'skin' | 'hair' | 'other';
 
   cartItems: CartItem[];
@@ -62,7 +63,7 @@ interface AppContextType {
 
   getAuthHeaders: () => Promise<HeadersInit>;
 
-  navigateTo: (page: Page, pid?: string) => void;
+  navigateTo: (page: Page, pid?: string, orderId?: string) => void;
   setShopFilter: (f: 'all' | 'skin' | 'hair' | 'other') => void;
 
   addToCart: (product: Product, quantity?: number) => void;
@@ -75,6 +76,7 @@ interface AppContextType {
 
   cancelOrder: (orderId: string) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
+  updateOrderAddress: (orderId: string, address: Partial<ShippingDetails>) => Promise<Order>;
 
   toggleWishlist: (product: Product) => void;
   isInWishlist: (pid: string) => boolean;
@@ -101,9 +103,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [selectedProductPid, setSelectedProductPid] = useState<string | null>(
-    null
-  );
+  const [selectedProductPid, setSelectedProductPid] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [shopFilter, setShopFilter] =
     useState<'all' | 'skin' | 'hair' | 'other'>('all');
 
@@ -265,9 +266,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentPage(path as Page);
   }, [location.pathname]);
 
-  const navigateTo = (page: Page, pid?: string) => {
+  const navigateTo = (page: Page, pid?: string, orderId?: string) => {
     setCurrentPage(page);
     setSelectedProductPid(pid ?? null);
+    setSelectedOrderId(orderId ?? null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (page === 'home') {
       navigate('/');
@@ -430,6 +432,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrders(prev => prev.filter(o => o._id !== orderId));
   };
 
+  const updateOrderAddress = async (orderId: string, address: Partial<ShippingDetails>): Promise<Order> => {
+    if (authStatus !== 'authenticated') {
+      throw new Error('Unauthenticated');
+    }
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/orders/${orderId}/address`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(address),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Failed to update address');
+    }
+
+    const { data } = await res.json();
+    setOrders(prev => prev.map(o => o._id === orderId ? data : o));
+    return data;
+  };
+
   /* =============================
      Wishlist
   ============================== */
@@ -481,6 +504,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         error,
         currentPage,
         selectedProductPid,
+        selectedOrderId,
         shopFilter,
         cartItems,
         wishlist,
@@ -503,6 +527,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         verifyPayment,
         cancelOrder,
         deleteOrder,
+        updateOrderAddress,
         toggleWishlist,
         isInWishlist,
         cartCount,

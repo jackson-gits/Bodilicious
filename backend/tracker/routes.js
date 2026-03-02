@@ -8,6 +8,7 @@ import {
   cancelOrder,
   deleteOrder,
   trackShiprocketOrder,
+  updateShippingAddress,
 } from "./controller.js";
 
 const router = express.Router();
@@ -41,6 +42,12 @@ router.get("/shiprocket/:awb", protect, trackShiprocketOrder);
 // GET /api/orders/:orderId
 // =============================
 router.get("/:orderId", protect, getSingleOrder);
+
+// =============================
+// UPDATE SHIPPING ADDRESS
+// PATCH /api/orders/:orderId/address
+// =============================
+router.patch("/:orderId/address", protect, updateShippingAddress);
 
 // =============================
 // CANCEL ORDER

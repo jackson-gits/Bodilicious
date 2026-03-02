@@ -53,6 +53,9 @@ export const createOrder = async (req, res) => {
       await product.save({ session });
     }
 
+    const shippingCost = totalAmount >= 999 ? 0 : 99;
+    totalAmount += shippingCost;
+
     const finalPaymentMethod = paymentMethod || "cod";
 
     // 🔹 Create Order in MongoDB

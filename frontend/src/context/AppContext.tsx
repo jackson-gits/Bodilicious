@@ -74,8 +74,7 @@ interface AppContextType {
   removeFromCart: (pid: string) => void;
   updateQuantity: (pid: string, qty: number) => void;
 
-  // Modified checkout function to return razorpayOrder
-  checkout: (shippingDetails: ShippingDetails, paymentMethod: string) => Promise<{ order: Order, razorpayOrder: any }>;
+  checkout: (shippingDetails: ShippingDetails, paymentMethod: string) => Promise<{ order: Order; razorpayOrder: any }>;
   verifyPayment: (razorpay_order_id: string, razorpay_payment_id: string, razorpay_signature: string) => Promise<void>;
 
   cancelOrder: (orderId: string) => Promise<void>;
@@ -153,7 +152,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setWishlist(data?.wishlist ?? []);
       setCartItems(data?.cart ?? []);
 
-      // Filter out nulls that occur when populated references are physically/soft deleted
       const validOrders = (data?.orders ?? []).filter((o: any) => o !== null);
       setOrders(validOrders);
 
@@ -233,41 +231,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const headers = await getAuthHeaders();
     const res = await fetch(USER_BASE, {
-      method: "PATCH",
+      method: 'PATCH',
       headers,
-      body: JSON.stringify(updateData)
+      body: JSON.stringify(updateData),
     });
 
     if (!res.ok) {
-      throw new Error("Failed to update profile");
+      throw new Error('Failed to update profile');
     }
 
     const { data } = await res.json();
-    setUser(prev => prev ? { ...prev, ...data } : null);
+    setUser(prev => (prev ? { ...prev, ...data } : null));
   };
 
   /* =============================
      Products
   ============================== */
-  const fetchProducts = useCallback(async (query: string = "") => {
+  const fetchProducts = useCallback(async (query: string = '') => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch(`${API_BASE}/products${query}`);
       const json = await res.json();
       setProducts(json?.data ?? []);
       setTotalProducts(json?.total ?? 0);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError('Failed to load products');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // ✅ FIX: Always fetch products once (Shop needs this too)
   useEffect(() => {
-    if (location.pathname !== '/shop') {
-      fetchProducts();
-    }
-  }, [location.pathname, fetchProducts]);
+    fetchProducts();
+  }, [fetchProducts]);
 
   /* =============================
      Navigation
@@ -282,12 +281,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedProductPid(pid ?? null);
     setSelectedOrderId(orderId ?? null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (page === 'home') {
-      navigate('/');
-    } else {
-      navigate(`/${page}`);
-    }
+
+    if (page === 'home') navigate('/');
+    else navigate(`/${page}`);
   };
+
+  /* =============================
+     Helpers: resolve productId
+     (prevents checkout 400 when cart items miss _id)
+  ============================== */
+  const resolveProductId = useCallback(
+    (p: Product): string | null => {
+      const anyP = p as any;
+      if (anyP?._id) return String(anyP._id);
+
+      const match = products.find(x => x.pid === p.pid) as any;
+      if (match?._id) return String(match._id);
+
+      return null;
+    },
+    [products]
+  );
 
   /* =============================
      Cart helpers
@@ -296,16 +310,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (authStatus !== 'authenticated') return;
 
     const headers = await getAuthHeaders();
+
     await fetch(`${USER_BASE}/cart`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         cartItems: newCart
-          .filter(i => i.product && (i.product as any)._id)
-          .map(i => ({
-            productId: (i.product as any)._id,
-            quantity: i.quantity,
-          })),
+          .filter(i => i.product)
+          .map(i => {
+            const productId = resolveProductId(i.product);
+            return productId ? { productId, quantity: i.quantity } : null;
+          })
+          .filter(Boolean),
       }),
     });
   };
@@ -348,75 +364,118 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let nextCart: CartItem[] = [];
     setCartItems(prev => {
       nextCart = prev.map(i =>
-        i.product && i.product.pid === pid
-          ? { ...i, quantity: qty }
-          : i
+        i.product && i.product.pid === pid ? { ...i, quantity: qty } : i
       );
       return nextCart;
     });
     setTimeout(() => syncCartToBackend(nextCart), 0);
   };
 
-  const checkout = async (shippingDetails: ShippingDetails, paymentMethod: string): Promise<{ order: Order, razorpayOrder: any }> => {
-    if (authStatus !== 'authenticated' || cartItems.length === 0) {
-      throw new Error("Cannot checkout");
+  /* =============================
+     Checkout
+  ============================== */
+  const checkout = async (
+    shippingDetails: ShippingDetails,
+    paymentMethod: string
+  ): Promise<{ order: Order; razorpayOrder: any }> => {
+    if (authStatus !== 'authenticated') {
+      throw new Error('Please sign in to checkout');
+    }
+
+    if (cartItems.length === 0) {
+      throw new Error('Your cart is empty');
+    }
+
+    // Basic validation (adjust if your backend needs less/more)
+    if (
+      !shippingDetails?.name ||
+      !shippingDetails?.phone ||
+      !shippingDetails?.address ||
+      !shippingDetails?.city ||
+      !shippingDetails?.state ||
+      !shippingDetails?.pincode
+    ) {
+      throw new Error('Please fill all required shipping details.');
     }
 
     const headers = await getAuthHeaders();
 
-    // Prepare items for backend
     const items = cartItems
-      .filter(i => i.product && (i.product as any)._id)
-      .map(i => ({
-        productId: (i.product as any)._id,
-        quantity: i.quantity,
-      }));
+      .filter(i => i.product)
+      .map(i => {
+        const productId = resolveProductId(i.product);
+        return productId ? { productId, quantity: i.quantity } : null;
+      })
+      .filter(Boolean) as { productId: string; quantity: number }[];
+
+    if (items.length === 0) {
+      throw new Error('Cart items are missing product IDs. Refresh Shop and add items again.');
+    }
 
     const response = await fetch(`${API_BASE}/orders`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify({ items, shippingDetails, paymentMethod }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to checkout");
+      let errorData: any = null;
+      try {
+        errorData = await response.json();
+      } catch {
+        // ignore parse
+      }
+
+      console.error('Checkout failed:', {
+        status: response.status,
+        errorData,
+        payload: { items, shippingDetails, paymentMethod },
+      });
+
+      throw new Error(errorData?.message || 'Failed to checkout');
     }
 
     const json = await response.json();
     const { order, razorpayOrder } = json.data;
 
-    // Clear cart locally and on backend
     setCartItems([]);
     await syncCartToBackend([]);
-
-    // Update local orders
     setOrders(prev => [order, ...prev]);
 
     return { order, razorpayOrder };
   };
 
-  const verifyPayment = async (razorpay_order_id: string, razorpay_payment_id: string, razorpay_signature: string) => {
+  const verifyPayment = async (
+    razorpay_order_id: string,
+    razorpay_payment_id: string,
+    razorpay_signature: string
+  ) => {
     const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/payment/verify`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify({
         razorpay_order_id,
         razorpay_payment_id,
-        razorpay_signature
-      })
+        razorpay_signature,
+      }),
     });
 
     if (!res.ok) {
       const errorData = await res.json();
-      throw new Error(errorData.message || "Payment verification failed");
+      throw new Error(errorData.message || 'Payment verification failed');
     }
 
-    // Update the local order to show the newly confirmed paid status
-    setOrders(prev => prev.map(o => o.razorpayOrderId === razorpay_order_id ? { ...o, paymentStatus: 'paid' } : o));
+    setOrders(prev =>
+      prev.map(o =>
+        (o as any).razorpayOrderId === razorpay_order_id ? { ...o, paymentStatus: 'paid' } : o
+      )
+    );
   };
 
+  /* =============================
+     Orders
+  ============================== */
   const cancelOrder = async (orderId: string) => {
     if (authStatus !== 'authenticated') return;
     const headers = await getAuthHeaders();
@@ -426,8 +485,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     if (!res.ok) throw new Error('Failed to cancel order');
 
-    // Update local order status to cancelled
-    setOrders(prev => prev.map(o => o._id === orderId ? { ...o, orderStatus: 'cancelled' } : o));
+    setOrders(prev =>
+      prev.map(o => (o as any)._id === orderId ? { ...(o as any), orderStatus: 'cancelled' } : o)
+    );
   };
 
   const deleteOrder = async (orderId: string) => {
@@ -439,11 +499,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     if (!res.ok) throw new Error('Failed to delete order');
 
-    // Remove from local orders
-    setOrders(prev => prev.filter(o => o._id !== orderId));
+    setOrders(prev => prev.filter(o => (o as any)._id !== orderId));
   };
 
-  const updateOrderAddress = async (orderId: string, address: Partial<ShippingDetails>): Promise<Order> => {
+  const updateOrderAddress = async (
+    orderId: string,
+    address: Partial<ShippingDetails>
+  ): Promise<Order> => {
     if (authStatus !== 'authenticated') {
       throw new Error('Unauthenticated');
     }
@@ -460,7 +522,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const { data } = await res.json();
-    setOrders(prev => prev.map(o => o._id === orderId ? data : o));
+    setOrders(prev => prev.map(o => ((o as any)._id === orderId ? data : o)));
     return data;
   };
 
@@ -471,31 +533,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const exists = wishlist.some(p => p.pid === product.pid);
     const pWithId = product as Product & { _id?: string };
 
-    setWishlist(prev =>
-      exists ? prev.filter(p => p.pid !== product.pid) : [...prev, product]
-    );
+    setWishlist(prev => (exists ? prev.filter(p => p.pid !== product.pid) : [...prev, product]));
 
-    if (authStatus === 'authenticated' && pWithId._id) {
+    if (authStatus === 'authenticated') {
       const headers = await getAuthHeaders();
 
-      await fetch(
-        exists
-          ? `${USER_BASE}/wishlist/${pWithId._id}`
-          : `${USER_BASE}/wishlist`,
-        {
-          method: exists ? 'DELETE' : 'POST',
-          headers,
-          body: exists ? undefined : JSON.stringify({ productId: pWithId._id }),
-        }
-      );
+      const productId = pWithId._id || resolveProductId(product);
+
+      // If we still don't have productId, skip backend sync (but keep local wishlist)
+      if (!productId) return;
+
+      await fetch(exists ? `${USER_BASE}/wishlist/${productId}` : `${USER_BASE}/wishlist`, {
+        method: exists ? 'DELETE' : 'POST',
+        headers,
+        body: exists ? undefined : JSON.stringify({ productId }),
+      });
     }
   };
 
-  const isInWishlist = (pid: string) =>
-    wishlist.some(p => p.pid === pid);
+  const isInWishlist = (pid: string) => wishlist.some(p => p.pid === pid);
 
   /* =============================
-     Derived values (CRASH FIX)
+     Derived values
   ============================== */
   const cartCount = cartItems.reduce(
     (sum, i) => sum + (i.product ? (i.quantity ?? 0) : 0),
@@ -504,7 +563,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const cartTotal = cartItems.reduce((sum, i) => {
     if (!i.product) return sum;
-    return sum + i.product.price * i.quantity;
+    const qty = Number(i.quantity ?? 0);
+    const price = Number((i.product as any).price ?? 0);
+    return sum + price * qty;
   }, 0);
 
   return (

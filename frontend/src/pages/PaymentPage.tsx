@@ -17,7 +17,7 @@ const loadRazorpayScript = () => {
 };
 
 export default function PaymentPage() {
-    const { cartItems, cartTotal, checkout, verifyPayment, user, cancelOrder } = useApp();
+    const { cartItems, cartTotal, checkout, verifyPayment, user } = useApp();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -60,9 +60,17 @@ export default function PaymentPage() {
                     throw new Error("Razorpay order details not received");
                 }
 
+                if (!(window as any).Razorpay) {
+                    const ok = await loadRazorpayScript();
+                    if (!ok || !(window as any).Razorpay) throw new Error("Razorpay failed to load");
+                }
+
+                const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+                if (!razorpayKey) throw new Error("Razorpay Key is missing configuration");
+
                 // Initialize Razorpay
                 const options: any = {
-                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_dummy",
+                    key: razorpayKey,
                     amount: razorpayOrder.amount,
                     currency: razorpayOrder.currency,
                     name: "Bodilicious",
@@ -88,15 +96,10 @@ export default function PaymentPage() {
                         color: "#8B0000",
                     },
                     modal: {
-                        ondismiss: async function () {
+                        ondismiss: function () {
                             setIsProcessing(false);
-                            try {
-                                await cancelOrder(order._id);
-                            } catch (e) {
-                                console.error("Failed to quickly cancel order", e);
-                            }
-                            alert("Payment cancelled. The pending order has been cancelled.");
-                            navigate('/confirmation', { state: { orderId: order._id, status: 'cancelled' } });
+                            alert("Payment cancelled. You can retry payment from your orders.");
+                            navigate('/confirmation', { state: { orderId: order._id, status: 'failed' } });
                         }
                     }
                 };
@@ -245,11 +248,10 @@ export default function PaymentPage() {
                                     <button
                                         type="submit"
                                         disabled={isProcessing}
-                                        className={`w-full py-4 text-white font-sans text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all \${
-                                        isProcessing 
-                                            ? 'bg-gray-300 cursor-not-allowed text-gray-500' 
+                                        className={`w-full py-4 text-white font-sans text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all ${isProcessing
+                                            ? 'bg-gray-300 cursor-not-allowed text-gray-500'
                                             : 'bg-dark-red hover:bg-ruby-red shadow-md hover:shadow-lg'
-                                    }`}
+                                            }`}
                                     >
                                         {isProcessing ? (
                                             <>

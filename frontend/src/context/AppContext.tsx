@@ -35,6 +35,7 @@ export interface ShippingDetails {
 
 interface AppContextType {
   products: Product[];
+  totalProducts: number;
   isLoading: boolean;
   error: string | null;
 
@@ -65,6 +66,7 @@ interface AppContextType {
 
   navigateTo: (page: Page, pid?: string, orderId?: string) => void;
   setShopFilter: (f: 'all' | 'skin' | 'hair' | 'other') => void;
+  fetchProducts: (query?: string) => Promise<void>;
 
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (pid: string) => void;
@@ -99,6 +101,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -244,19 +247,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* =============================
      Products
   ============================== */
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/products/all`);
-        const json = await res.json();
-        setProducts(json?.data ?? []);
-      } catch {
-        setError('Failed to load products');
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+  const fetchProducts = useCallback(async (query: string = "") => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/products${query}`);
+      const json = await res.json();
+      setProducts(json?.data ?? []);
+      setTotalProducts(json?.total ?? 0);
+    } catch {
+      setError('Failed to load products');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (location.pathname !== '/shop') {
+      fetchProducts();
+    }
+  }, [location.pathname, fetchProducts]);
 
   /* =============================
      Navigation
@@ -500,6 +509,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         products,
+        totalProducts,
         isLoading,
         error,
         currentPage,
@@ -520,6 +530,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getAuthHeaders,
         navigateTo,
         setShopFilter,
+        fetchProducts,
         addToCart,
         removeFromCart,
         updateQuantity,

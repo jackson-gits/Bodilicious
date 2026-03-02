@@ -12,6 +12,7 @@ import {
     Printer
 } from 'lucide-react';
 import { TimelineEvent } from '../types';
+import Footer from '../components/Footer';
 
 export default function OrderDetailsPage() {
     const { orders, selectedOrderId, navigateTo, getAuthHeaders, updateOrderAddress } = useApp();
@@ -181,7 +182,7 @@ export default function OrderDetailsPage() {
 
     const HorizontalTimeline = ({ timeline, status }: { timeline: TimelineEvent[], status: string }) => {
         const isErrorState = status.toLowerCase() === 'cancelled' || status.toLowerCase().includes('fail');
-        const activeColor = isErrorState ? 'bg-red-500' : 'bg-[#e77600]';
+        const activeColor = isErrorState ? 'bg-red-500' : 'bg-dark-red';
 
         return (
             <div className="w-full mt-4 mb-8 hidden sm:block print:hidden">
@@ -195,7 +196,7 @@ export default function OrderDetailsPage() {
                     )}
                     {timeline.map((event, idx) => (
                         <div key={idx} className="relative flex flex-col items-center z-10">
-                            <div className={`w-5 h-5 rounded-full border-4 ${event.completed ? activeColor + ' border-' + activeColor : 'bg-gray-200 border-gray-200'} transition-colors duration-500`}></div>
+                            <div className={`w-5 h-5 rounded-full border-[3px] ${event.completed ? (isErrorState ? 'bg-red-500 border-red-500' : 'bg-dark-red border-dark-red') : 'bg-neutral-50 border-gray-300'} transition-colors duration-500 shadow-sm`}></div>
                             <div className="absolute top-8 w-24 text-center">
                                 <p className={`text-xs font-semibold ${event.completed ? 'text-gray-900' : 'text-gray-400'}`}>{event.status}</p>
                             </div>
@@ -207,19 +208,16 @@ export default function OrderDetailsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans text-[#202223]">
-            {/* SaaS App Header (Minimal) */}
-            <div className="bg-white border-b border-gray-200 h-14 flex items-center px-4 shrink-0 mt-16 md:mt-20 print:hidden">
-                <div className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-gray-900" onClick={() => navigateTo('tracking')}>
-                    <ArrowLeft size={16} />
-                    <span className="text-sm font-medium">Orders</span>
-                </div>
-            </div>
-
-            <div className="flex flex-1 overflow-hidden">
-                {/* Main Content Scrollable Area */}
-                <main className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <div className="max-w-5xl mx-auto">
+        <div className="min-h-screen bg-neutral-50 flex flex-col font-sans">
+            <div className="flex flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-24 pb-16">
+                <main className="flex-1">
+                    <button
+                        onClick={() => navigateTo('tracking')}
+                        className="flex items-center gap-2 text-sm text-grey-beige hover:text-dark-red transition-colors mb-6 font-sans print:hidden w-fit"
+                    >
+                        <ArrowLeft size={16} /> Back to Orders
+                    </button>
+                    <div>
 
                         {/* Print Invoice Header (Visible only when printing) */}
                         <div className="hidden print:block border-b border-gray-200 pb-6 mb-6">
@@ -237,37 +235,37 @@ export default function OrderDetailsPage() {
                         </div>
 
                         {/* Top Header Section */}
-                        <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4 print:hidden">
+                        <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4 print:hidden">
                             <div>
-                                <div className="flex items-center gap-3 mb-1">
-                                    <h1 className="text-2xl font-semibold text-gray-900">#{order._id.substring(order._id.length - 6).toUpperCase()}</h1>
-                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getPaymentBadge(order.paymentStatus)}`}>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h1 className="text-3xl font-serif text-dark-red">Order #{order._id.substring(order._id.length - 6).toUpperCase()}</h1>
+                                    <span className={`px-3 py-1 text-xs font-sans tracking-widest uppercase border border-opacity-50 ${getPaymentBadge(order.paymentStatus)}`}>
                                         {order.paymentStatus === 'paid' ? 'Paid' : 'Payment Pending'}
                                     </span>
-                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getFulfillmentBadge(order.orderStatus)}`}>
+                                    <span className={`px-3 py-1 text-xs font-sans tracking-widest uppercase border border-opacity-50 ${getFulfillmentBadge(order.orderStatus)}`}>
                                         {order.orderStatus === 'shipped' || order.orderStatus === 'delivered' ? 'Fulfilled' : (order.orderStatus === 'cancelled' ? 'Cancelled' : 'Unfulfilled')}
                                     </span>
                                 </div>
-                                <p className="text-sm text-gray-500">
-                                    {new Date(order.createdAt).toLocaleString()} from Online Store
+                                <p className="text-sm font-sans text-grey-beige">
+                                    Placed on {new Date(order.createdAt).toLocaleString()} from Bodilicious
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={handlePrintInvoice} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 shadow-sm transition-colors">
+                                <button onClick={handlePrintInvoice} className="flex items-center gap-2 px-4 py-2 text-xs font-sans tracking-widest uppercase text-dark-red bg-white border border-dark-red hover:bg-neutral-50 transition-colors shadow-sm">
                                     <Printer size={16} /> Print Invoice
                                 </button>
                             </div>
                         </div>
 
                         {/* Shiprocket Tracker Map */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:hidden">
-                            <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                    <Package size={16} className="text-gray-500" />
+                        <div className="bg-white rounded-none shadow-sm border border-gray-200 overflow-hidden print:hidden mb-8">
+                            <div className="p-5 border-b border-gray-100 bg-white flex justify-between items-center">
+                                <h3 className="text-base font-serif text-dark-red flex items-center gap-2">
+                                    <Package size={18} className="text-dark-red/70" />
                                     Live Tracking
-                                    {trackingData && <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${trackingData.status.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-[#e77600]/10 text-[#e77600]'}`}>{trackingData.status}</span>}
+                                    {trackingData && <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-widest ${trackingData.status.toLowerCase() === 'cancelled' ? 'bg-red-50 text-red-700' : 'bg-red-50 text-dark-red'}`}>{trackingData.status}</span>}
                                 </h3>
-                                {order.awb && <p className="text-xs text-gray-500 font-mono">AWB: {order.awb}</p>}
+                                {order.awb && <p className="text-xs text-grey-beige font-mono tracking-wider">AWB: {order.awb}</p>}
                             </div>
                             <div className="p-6">
                                 {isTrackingLoading ? (
@@ -292,10 +290,10 @@ export default function OrderDetailsPage() {
                             <div className="lg:col-span-2 flex flex-col gap-6">
 
                                 {/* Order Items Card */}
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                    <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white pointer-events-none">
-                                        <div className="flex items-center gap-2 text-gray-800 font-semibold text-sm">
-                                            <Package size={18} className="text-gray-500" /> Unfulfilled ({order.items.length})
+                                <div className="bg-white rounded-none shadow-sm border border-gray-200 overflow-hidden">
+                                    <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-white pointer-events-none">
+                                        <div className="flex items-center gap-2 text-dark-red font-serif text-lg">
+                                            Order Items ({order.items.length})
                                         </div>
                                     </div>
                                     <div className="p-0">
@@ -311,15 +309,15 @@ export default function OrderDetailsPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <a href="#" className="text-sm font-medium text-[#005bd3] hover:underline truncate block">
+                                                    <a href="#" className="text-sm font-serif text-dark-red hover:text-ruby-red transition-colors truncate block">
                                                         {item.product?.name || 'Unknown Product'}
                                                     </a>
-                                                    <p className="text-xs text-gray-500 mt-0.5">{item.product?.type || 'Standard'}</p>
+                                                    <p className="text-xs font-sans text-grey-beige mt-1 uppercase tracking-wider">{item.product?.category || 'Standard'}</p>
                                                 </div>
-                                                <div className="text-right text-sm text-gray-900">
+                                                <div className="text-right text-sm font-sans text-gray-500">
                                                     ₹{item.priceAtPurchase.toLocaleString('en-IN')} × {item.quantity}
                                                 </div>
-                                                <div className="text-right text-sm font-semibold text-gray-900 min-w-[80px]">
+                                                <div className="text-right text-sm font-sans font-semibold text-dark-red min-w-[80px]">
                                                     ₹{(item.priceAtPurchase * item.quantity).toLocaleString('en-IN')}
                                                 </div>
                                             </div>
@@ -328,14 +326,14 @@ export default function OrderDetailsPage() {
                                 </div>
 
                                 {/* Payment / Summary Card */}
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                                    <div className="p-4 border-b border-gray-200 flex items-center gap-2">
+                                <div className="bg-white rounded-none shadow-sm border border-gray-200">
+                                    <div className="p-5 border-b border-gray-100 flex items-center gap-2">
                                         {order.paymentStatus === 'paid' ? (
                                             <CheckCircle2 size={18} className="text-green-600" />
                                         ) : (
                                             <Clock size={18} className="text-yellow-600" />
                                         )}
-                                        <h3 className="text-sm font-semibold text-gray-800">
+                                        <h3 className="text-lg font-serif text-dark-red">
                                             {order.paymentStatus === 'paid' ? 'Paid' : 'Payment pending'}
                                         </h3>
                                     </div>
@@ -356,11 +354,11 @@ export default function OrderDetailsPage() {
                                             <span>Shipping</span>
                                             <span className="text-gray-900">Free</span>
                                         </div>
-                                        <div className="flex justify-between items-center py-3 mt-2 border-t border-gray-200 text-sm font-semibold text-gray-900">
+                                        <div className="flex justify-between items-center py-4 mt-2 border-t border-gray-100 text-base font-serif text-dark-red">
                                             <span>Total</span>
                                             <div className="text-right">
-                                                <span className="text-gray-500 font-normal mr-2">INR</span>
-                                                <span className="text-lg">₹{total.toLocaleString('en-IN')}</span>
+                                                <span className="text-grey-beige font-sans text-xs tracking-widest uppercase mr-2 font-normal">INR</span>
+                                                <span className="text-xl">₹{total.toLocaleString('en-IN')}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -375,28 +373,28 @@ export default function OrderDetailsPage() {
                                 </div>
 
                                 {/* Timeline Card */}
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 print:hidden">
-                                    <h3 className="text-sm font-semibold text-gray-800 mb-4">Timeline</h3>
-                                    <div className="relative border-l border-gray-200 ml-3 space-y-6 pb-4">
+                                <div className="bg-white rounded-none shadow-sm border border-gray-200 p-6 print:hidden">
+                                    <h3 className="text-lg font-serif text-dark-red mb-6">Timeline</h3>
+                                    <div className="relative border-l border-gray-100 ml-3 space-y-6 pb-2">
 
                                         <div className="relative pl-6">
-                                            <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-300 border-2 border-white"></div>
-                                            <p className="text-sm font-medium text-gray-900">Order placed by {order.shippingDetails?.name || 'Customer'}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{new Date(order.createdAt).toLocaleString()}</p>
+                                            <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-dark-red border-[3px] border-white ring-1 ring-dark-red"></div>
+                                            <p className="text-sm font-sans font-medium text-gray-900">Order placed by {order.shippingDetails?.name || 'Customer'}</p>
+                                            <p className="text-xs font-sans text-grey-beige mt-1">{new Date(order.createdAt).toLocaleString()}</p>
                                         </div>
 
                                         {order.paymentStatus === 'paid' && (
                                             <div className="relative pl-6">
-                                                <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-300 border-2 border-white"></div>
-                                                <p className="text-sm font-medium text-gray-900">Payment of ₹{total.toLocaleString('en-IN')} was processed</p>
-                                                <p className="text-xs text-gray-500 mt-1">{new Date(order.createdAt).toLocaleString()}</p>
+                                                <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-dark-red border-[3px] border-white ring-1 ring-dark-red"></div>
+                                                <p className="text-sm font-sans font-medium text-gray-900">Payment of ₹{total.toLocaleString('en-IN')} was processed</p>
+                                                <p className="text-xs font-sans text-grey-beige mt-1">{new Date(order.createdAt).toLocaleString()}</p>
                                             </div>
                                         )}
 
                                         {order.awb && (
                                             <div className="relative pl-6">
-                                                <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-300 border-2 border-white"></div>
-                                                <p className="text-sm font-medium text-gray-900">Shipping label created (AWB: {order.awb})</p>
+                                                <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-dark-red border-[3px] border-white ring-1 ring-dark-red"></div>
+                                                <p className="text-sm font-sans font-medium text-gray-900">Shipping label created (AWB: {order.awb})</p>
                                             </div>
                                         )}
                                     </div>
@@ -408,70 +406,69 @@ export default function OrderDetailsPage() {
                             <div className="flex flex-col gap-6">
 
                                 {/* Customer Details */}
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col gap-4">
+                                <div className="bg-white rounded-none shadow-sm border border-gray-200 p-6 flex flex-col gap-5">
                                     <div className="flex justify-between items-center">
-                                        <h3 className="text-sm font-semibold text-gray-800">Contact & Address</h3>
+                                        <h3 className="text-lg font-serif text-dark-red">Contact & Address</h3>
                                     </div>
 
                                     <div>
-                                        <p className="text-sm font-medium text-gray-900 block">{order.shippingDetails?.name}</p>
+                                        <p className="text-sm font-sans font-medium text-gray-900 block">{order.shippingDetails?.name}</p>
                                     </div>
 
-                                    <div className="border-t border-gray-100 pt-2">
-                                        <h4 className="text-xs uppercase font-semibold text-gray-500 mb-2">Contact Information</h4>
-                                        <a href={`mailto:${order.shippingDetails?.email || 'customer@example.com'}`} className="text-sm text-[#005bd3] hover:underline flex flex-col mb-1.5 break-all">
+                                    <div className="border-t border-gray-100 pt-3">
+                                        <h4 className="text-xs uppercase tracking-widest font-sans text-grey-beige mb-3">Contact Information</h4>
+                                        <a href={`mailto:${order.shippingDetails?.email || 'customer@example.com'}`} className="text-sm font-sans text-dark-red hover:text-ruby-red flex flex-col mb-1.5 break-all w-fit">
                                             {order.shippingDetails?.email || 'customer@example.com'}
                                         </a>
-                                        <a href={`tel:${order.shippingDetails?.phone}`} className="text-sm text-gray-700 hover:text-[#005bd3] flex flex-col">
+                                        <a href={`tel:${order.shippingDetails?.phone}`} className="text-sm font-sans text-gray-700 hover:text-dark-red flex flex-col">
                                             {order.shippingDetails?.phone}
                                         </a>
                                     </div>
 
-                                    <div className="border-t border-gray-100 pt-3 relative">
+                                    <div className="border-t border-gray-100 pt-4 relative">
                                         {isEditingAddress ? (
-                                            <div className="space-y-3 bg-gray-50 p-3 rounded-md border border-gray-200">
-                                                <h4 className="text-xs uppercase font-semibold text-gray-900">Edit Address</h4>
-                                                <input type="text" placeholder="Full Name" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
-                                                <input type="text" placeholder="Street Address" value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
-                                                <div className="flex gap-2">
-                                                    <input type="text" placeholder="City" value={editForm.city} onChange={e => setEditForm({ ...editForm, city: e.target.value })} className="w-1/2 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
-                                                    <input type="text" placeholder="State" value={editForm.state} onChange={e => setEditForm({ ...editForm, state: e.target.value })} className="w-1/2 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
+                                            <div className="space-y-4 bg-neutral-50 p-4 rounded-none border border-gray-100">
+                                                <h4 className="text-xs uppercase tracking-widest font-sans text-dark-red">Edit Address</h4>
+                                                <input type="text" placeholder="Full Name" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 text-sm font-sans border border-gray-200 bg-white focus:border-dark-red focus:ring-0 outline-none transition-colors" />
+                                                <input type="text" placeholder="Street Address" value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} className="w-full px-3 py-2 text-sm font-sans border border-gray-200 bg-white focus:border-dark-red focus:ring-0 outline-none transition-colors" />
+                                                <div className="flex gap-3">
+                                                    <input type="text" placeholder="City" value={editForm.city} onChange={e => setEditForm({ ...editForm, city: e.target.value })} className="w-1/2 px-3 py-2 text-sm font-sans border border-gray-200 bg-white focus:border-dark-red focus:ring-0 outline-none transition-colors" />
+                                                    <input type="text" placeholder="State" value={editForm.state} onChange={e => setEditForm({ ...editForm, state: e.target.value })} className="w-1/2 px-3 py-2 text-sm font-sans border border-gray-200 bg-white focus:border-dark-red focus:ring-0 outline-none transition-colors" />
                                                 </div>
-                                                <input type="text" placeholder="Pincode" value={editForm.pincode} onChange={e => setEditForm({ ...editForm, pincode: e.target.value })} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
-                                                <input type="email" placeholder="Email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
-                                                <input type="tel" placeholder="Phone" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
+                                                <input type="text" placeholder="Pincode" value={editForm.pincode} onChange={e => setEditForm({ ...editForm, pincode: e.target.value })} className="w-full px-3 py-2 text-sm font-sans border border-gray-200 bg-white focus:border-dark-red focus:ring-0 outline-none transition-colors" />
+                                                <input type="email" placeholder="Email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-3 py-2 text-sm font-sans border border-gray-200 bg-white focus:border-dark-red focus:ring-0 outline-none transition-colors" />
+                                                <input type="tel" placeholder="Phone" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} className="w-full px-3 py-2 text-sm font-sans border border-gray-200 bg-white focus:border-dark-red focus:ring-0 outline-none transition-colors" />
 
-                                                <div className="flex justify-end gap-2 mt-2">
-                                                    <button onClick={() => setIsEditingAddress(false)} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50">Cancel</button>
-                                                    <button onClick={handleSaveAddress} disabled={isSavingAddress} className="px-3 py-1.5 text-xs font-medium text-white bg-[#008060] rounded shadow-sm hover:bg-[#006e52]">
+                                                <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+                                                    <button onClick={() => setIsEditingAddress(false)} className="px-4 py-2 text-xs font-sans tracking-widest uppercase text-gray-600 bg-white border border-gray-200 hover:bg-neutral-50 transition-colors shadow-sm">Cancel</button>
+                                                    <button onClick={handleSaveAddress} disabled={isSavingAddress} className="px-4 py-2 text-xs font-sans tracking-widest uppercase text-silk bg-dark-red hover:bg-ruby-red transition-colors shadow-sm">
                                                         {isSavingAddress ? 'Saving...' : 'Save'}
                                                     </button>
                                                 </div>
                                             </div>
                                         ) : (
                                             <>
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <h4 className="text-xs uppercase font-semibold text-gray-500">Shipping Address</h4>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h4 className="text-xs uppercase tracking-widest font-sans text-grey-beige">Shipping Address</h4>
                                                     {(order.orderStatus !== 'shipped' && order.orderStatus !== 'delivered') && (
-                                                        <button onClick={() => setIsEditingAddress(true)} className="text-[#005bd3] text-xs font-medium hover:underline print:hidden">Edit</button>
+                                                        <button onClick={() => setIsEditingAddress(true)} className="text-dark-red text-xs font-sans tracking-wider hover:text-ruby-red uppercase print:hidden">Edit</button>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-gray-700 leading-relaxed">
+                                                <p className="text-sm font-sans text-gray-800 leading-relaxed">
                                                     {order.shippingDetails?.name}<br />
                                                     {order.shippingDetails?.address}<br />
-                                                    {order.shippingDetails?.city} {order.shippingDetails?.pincode}<br />
-                                                    {order.shippingDetails?.state}<br />
-                                                    India
+                                                    {order.shippingDetails?.city} - {order.shippingDetails?.pincode}<br />
+                                                    {order.shippingDetails?.state}, India
                                                 </p>
                                             </>
                                         )}
                                     </div>
 
-                                    <div className="border-t border-gray-100 pt-3">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h4 className="text-xs uppercase font-semibold text-gray-500">Billing Address</h4>
+                                    <div className="border-t border-gray-100 pt-4">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="text-xs uppercase tracking-widest font-sans text-grey-beige">Billing Address</h4>
                                         </div>
-                                        <p className="text-sm text-gray-500 italic">Same as shipping address</p>
+                                        <p className="text-sm font-sans text-gray-500 italic">Same as shipping address</p>
                                     </div>
                                 </div>
 
@@ -483,6 +480,7 @@ export default function OrderDetailsPage() {
                     </div>
                 </main>
             </div>
+            <Footer />
         </div>
     );
 }

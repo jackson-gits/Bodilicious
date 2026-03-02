@@ -10,29 +10,35 @@ import { z } from "zod";
 export const createProductSchema = z
   .object({
     pid: z.string().min(1, "Product ID is required"),
-
     name: z.string().min(1, "Name is required"),
-
+    brand: z.string().optional(),
     images: z
       .array(z.string().url("Each image must be a valid URL"))
       .min(1, "At least one image is required"),
-
     description: z.string().min(1, "Description is required"),
 
-    uses: z.array(z.string().trim()).optional(),
+    category: z.enum(["skin", "hair", "body", "makeup", "lip", "other"]),
+    sub_category: z.string().optional(),
+    product_type: z.string().optional(),
+    item_form: z.string().optional(),
 
-    symptomsCured: z.array(z.string().trim()).optional(),
+    ingredients: z.object({
+      key_actives: z.array(z.string()).optional(),
+      botanical_extracts: z.array(z.string()).optional(),
+      others: z.array(z.string()).optional(),
+    }).optional(),
 
-    ingredients: z.array(z.string().trim()).optional(),
+    benefits: z.array(z.string()).optional(),
+    concerns_targeted: z.array(z.string()).optional(),
 
-    type: z.enum(["skin", "hair", "other"]),
+    usage: z.object({
+      time: z.string().optional(),
+      frequency: z.string().optional(),
+      routine_step: z.string().optional(),
+    }).optional(),
 
-    price: z.number().positive("Price must be greater than 0"),
-
-    stock: z
-      .number()
-      .int("Stock must be an integer")
-      .nonnegative("Stock cannot be negative"),
+    price: z.number().min(0, "Price must be non-negative"),
+    stock: z.number().int("Stock must be an integer").min(0, "Stock cannot be negative"),
   })
   .strict();
 

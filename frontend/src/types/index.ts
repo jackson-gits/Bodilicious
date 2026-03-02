@@ -5,15 +5,35 @@ export interface Review {
   createdAt: string;
 }
 
+export interface IngredientData {
+  key_actives: string[];
+  botanical_extracts: string[];
+  others: string[];
+}
+
+export interface UsageData {
+  time?: string;
+  frequency?: string;
+  routine_step?: string;
+}
+
 export interface Product {
   pid: string;
   name: string;
+  brand?: string;
   images: string[];
   description: string;
-  uses: string[];
-  symptomsCured: string[];
-  ingredients: string[];
-  type: 'skin' | 'hair' | 'other';
+
+  category: 'skin' | 'hair' | 'body' | 'makeup' | 'lip' | 'other';
+  sub_category?: string;
+  product_type?: string;
+  item_form?: string;
+
+  ingredients?: IngredientData;
+  benefits?: string[];
+  concerns_targeted?: string[];
+  usage?: UsageData;
+
   rating: number;
   ratingCount: number;
   reviews: Review[];

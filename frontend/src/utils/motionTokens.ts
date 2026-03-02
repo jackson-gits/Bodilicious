@@ -2,18 +2,18 @@ import { Variants, Transition } from "framer-motion";
 
 // --- Durations ---
 export const durations = {
-    fast: 0.2,
-    medium: 0.4,
-    slow: 0.8,
-    pageTransition: 0.5,
+    fast: 0.4,
+    medium: 0.7,
+    slow: 1.2,
+    pageTransition: 0.8,
 };
 
 // --- Easings ---
 // Luxury feeling: slow, smooth deceleration with minimal to no bounce.
 export const easings = {
-    standard: [0.25, 1, 0.5, 1], // Standard fast out, slow in
-    luxury: [0.22, 1, 0.36, 1],  // Smoother, elegant sine
-    springLike: [0.175, 0.885, 0.32, 1.275] // Very subtle controlled overshoot
+    standard: [0.25, 1, 0.5, 1] as [number, number, number, number], // Standard fast out, slow in
+    luxury: [0.22, 1, 0.36, 1] as [number, number, number, number],  // Smoother, elegant sine
+    springLike: [0.175, 0.885, 0.32, 1.275] as [number, number, number, number] // Very subtle controlled overshoot
 };
 
 // --- Base Transitions ---
@@ -85,8 +85,8 @@ export const staggerContainerVariant: Variants = {
     visible: {
         opacity: 1,
         transition: {
-            staggerChildren: 0.1, // Short 100ms delay between items
-            delayChildren: 0.05,
+            staggerChildren: 0.2, // Increased delay between items
+            delayChildren: 0.1,
         }
     }
 };
@@ -98,13 +98,13 @@ export const staggerContainerVariant: Variants = {
 export const hoverLift = {
     scale: 1.02,
     y: -2,
-    transition: { duration: durations.fast, ease: easings.standard }
+    transition: { duration: durations.medium, ease: easings.luxury }
 };
 
 export const hoverLiftSubtle = {
     scale: 1.01,
     y: -1,
-    transition: { duration: durations.fast, ease: easings.standard }
+    transition: { duration: durations.medium, ease: easings.luxury }
 };
 
 // --- Accessibility Wrapper Hook ---

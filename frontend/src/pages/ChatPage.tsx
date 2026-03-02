@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { MessageCircle, Send, Sparkles, Droplets, ShieldCheck } from "lucide-react";
 import ProductCard from "../components/ProductCard";
 import { useApp } from "../context/AppContext";
@@ -54,6 +55,7 @@ const renderMarkdown = (text: string) => {
 
 export default function ChatPage() {
     const { products: allProducts } = useApp();
+    const location = useLocation();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: "1",
@@ -68,6 +70,15 @@ export default function ChatPage() {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
+
+    useEffect(() => {
+        if (location.hash === '#faq') {
+            const el = document.getElementById('faq');
+            if (el) {
+                setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 300);
+            }
+        }
+    }, [location]);
 
     const handleSendMessage = async (textOveride?: string) => {
         const textToSend = textOveride || inputMessage;
@@ -283,6 +294,27 @@ export default function ChatPage() {
                         </div>
                     </div>
 
+                </div>
+            </div>
+
+            {/* FAQ Section */}
+            <div id="faq" className="max-w-6xl mx-auto w-full px-6 mt-24 pt-12 border-t border-silk/50 pb-8">
+                <div className="text-center mb-16">
+                    <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-4">Queries</p>
+                    <h2 className="font-serif text-3xl lg:text-4xl text-dark-red">Frequently Asked Questions</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                    {[
+                        { q: "How long until I see results?", a: "Our botanical formulations are potent yet gentle. While some experience an immediate glow, optimal results typically reveal themselves within 28 days of consistent ritual use." },
+                        { q: "Are your products cruelty-free?", a: "Absolutely. We hold a deep reverence for all living beings. Bodilicious products are rigorously formulated without animal testing." },
+                        { q: "Can the Advisor help with sensitive skin?", a: "Yes. Our AI Beauty Advisor is trained to recognize sensitive skin profiles and will strictly recommend soothing, non-reactive rituals tailored for delicate barriers." },
+                        { q: "Is the AI consultation free?", a: "Yes. The Bodilicious Advisor is a complimentary service designed to help you discover your perfect glow without any upfront commitment." },
+                    ].map((faq, idx) => (
+                        <div key={idx} className="bg-white p-8 border border-silk shadow-sm rounded-sm hover:border-ruby-red/50 transition-colors duration-300">
+                            <h3 className="font-serif text-lg text-dark-red mb-3">{faq.q}</h3>
+                            <p className="font-sans text-gray-600 text-sm leading-relaxed font-light">{faq.a}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

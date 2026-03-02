@@ -82,7 +82,7 @@ export default function ShippingPage() {
                         <div className="w-8 sm:w-16 h-[1px] bg-gray-300"></div>
                         <StepIndicator step={3} title="Payment" active={false} complete={false} />
                         <div className="w-8 sm:w-16 h-[1px] bg-gray-300"></div>
-                        <StepIndicator step={4} title="Confirmation" active={false} complete={false} />
+                        <StepIndicator step={4} title="Invoice" active={false} complete={false} />
                     </div>
                 </div>
 

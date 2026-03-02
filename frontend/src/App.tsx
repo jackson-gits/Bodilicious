@@ -16,6 +16,9 @@ import ShippingPage from './pages/ShippingPage';
 import ChatPage from './pages/ChatPage';
 import ConfirmationPage from './pages/ConfirmationPage';
 import GenericStaticPage from './pages/GenericStaticPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import ShippingRefundPage from './pages/ShippingRefundPage';
 import PageTransition from './components/PageTransition';
 
 function AppRoutes() {
@@ -45,11 +48,14 @@ function AppRoutes() {
           <Route path="/contact" element={<PageTransition><GenericStaticPage /></PageTransition>} />
           <Route path="/faqs" element={<PageTransition><GenericStaticPage /></PageTransition>} />
           <Route path="/stores" element={<PageTransition><GenericStaticPage /></PageTransition>} />
-          <Route path="/terms-sale" element={<PageTransition><GenericStaticPage /></PageTransition>} />
-          <Route path="/terms-use" element={<PageTransition><GenericStaticPage /></PageTransition>} />
           <Route path="/accessibility" element={<PageTransition><GenericStaticPage /></PageTransition>} />
-          <Route path="/privacy" element={<PageTransition><GenericStaticPage /></PageTransition>} />
           <Route path="/careers" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/students" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+
+          {/* Luxury Custom Policies */}
+          <Route path="/privacy" element={<PageTransition><PrivacyPage /></PageTransition>} />
+          <Route path="/terms" element={<PageTransition><TermsPage /></PageTransition>} />
+          <Route path="/shipping-refund" element={<PageTransition><ShippingRefundPage /></PageTransition>} />
           <Route path="/students" element={<PageTransition><GenericStaticPage /></PageTransition>} />
         </Routes>
       </AnimatePresence>

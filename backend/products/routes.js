@@ -17,7 +17,7 @@ const router = express.Router();
 
 router.post("/", validate(createProductSchema), createProduct);
 
-router.get("/all", getAllProducts);
+router.get("/", getAllProducts);
 
 router.get("/:pid", getProductByPid);
 

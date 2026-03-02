@@ -33,11 +33,17 @@ export const getAllProducts = async (req, res) => {
   try {
     const {
       name,
+      category,
+      concern,
       type,
-      minPrice,
-      maxPrice,
+      ingredient,
+      step,
+      priceMin,
+      priceMax,
+      inStock,
+      sort,
       page = 1,
-      limit = 0,
+      limit = 12,
     } = req.query;
 
     const query = { isActive: true };
@@ -46,23 +52,61 @@ export const getAllProducts = async (req, res) => {
       query.name = { $regex: name, $options: "i" };
     }
 
+    if (category && category !== 'all') {
+      const cats = category.split(',').map(c => c.trim().toLowerCase());
+      query.category = { $in: cats };
+    }
+
+    if (concern) {
+      const concernsArray = concern.split(',').map(c => c.trim());
+      query.concerns_targeted = { $in: concernsArray };
+    }
+
     if (type) {
-      query.type = type;
+      const typesArray = type.split(',').map(t => t.trim());
+      query.product_type = { $in: typesArray };
     }
 
-    if (minPrice || maxPrice) {
+    if (ingredient) {
+      const ingredientsArray = ingredient.split(',').map(i => i.trim());
+      query.$or = [
+        { "ingredients.key_actives": { $in: ingredientsArray } },
+        { "ingredients.botanical_extracts": { $in: ingredientsArray } },
+        { "ingredients.others": { $in: ingredientsArray } }
+      ];
+    }
+
+    if (step) {
+      const stepsArray = step.split(',').map(s => s.trim());
+      query["usage.routine_step"] = { $in: stepsArray };
+    }
+
+    if (inStock === 'true') {
+      query.stock = { $gt: 0 };
+    } else if (inStock === 'false') {
+      query.stock = 0;
+    }
+
+    if (priceMin || priceMax) {
       query.price = {};
-      if (minPrice) query.price.$gte = Number(minPrice);
-      if (maxPrice) query.price.$lte = Number(maxPrice);
+      if (priceMin) query.price.$gte = Number(priceMin);
+      if (priceMax) query.price.$lte = Number(priceMax);
     }
 
-    const skip = limit ? (Number(page) - 1) * Number(limit) : 0;
+    let sortObj = { createdAt: -1 };
+    if (sort === 'price_asc') sortObj = { price: 1 };
+    else if (sort === 'price_desc') sortObj = { price: -1 };
+    else if (sort === 'best_selling') sortObj = { ratingCount: -1 };
+
+    const numLimit = Number(limit);
+    const numPage = Number(page);
+    const skip = numLimit ? (numPage - 1) * numLimit : 0;
 
     const [products, total] = await Promise.all([
       Product.find(query)
-        .sort({ createdAt: -1 })
+        .sort(sortObj)
         .skip(skip)
-        .limit(Number(limit))
+        .limit(numLimit)
         .lean(),
       Product.countDocuments(query),
     ]);
@@ -70,9 +114,10 @@ export const getAllProducts = async (req, res) => {
     res.json({
       success: true,
       total,
-      page: Number(page),
-      totalPages: limit ? Math.ceil(total / Number(limit)) : 1,
-      data: products,
+      page: numPage,
+      totalPages: numLimit ? Math.ceil(total / numLimit) : 1,
+      products: products,
+      data: products
     });
   } catch (err) {
     res.status(500).json({

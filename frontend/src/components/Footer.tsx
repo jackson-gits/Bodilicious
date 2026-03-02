@@ -56,8 +56,8 @@ export default function Footer() {
             <ul className="space-y-2.5">
               {[
                 { label: 'Contact Us', path: '/contact' },
-                { label: 'Shipping & Returns', path: '/shipping' },
-                { label: 'FAQs', path: '/faqs' }
+                { label: 'Shipping & Returns', path: '/tracking' },
+                { label: 'FAQs', path: '/chat#faq' }
               ].map(item => (
                 <li key={item.label}>
                   <Link to={item.path} className="text-sm font-sans flex items-center w-fit text-grey-beige hover:text-ruby-red hover:translate-x-1 transition-all duration-300 tracking-wide">
@@ -74,13 +74,11 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2.5">
               {[
-                { label: 'Store Locator', path: '/stores' },
-                { label: 'Terms & Conditions of Sale', path: '/terms-sale' },
-                { label: 'Terms & Conditions of Use', path: '/terms-use' },
-                { label: 'Accessibility Declaration', path: '/accessibility' },
                 { label: 'Privacy Policy', path: '/privacy' },
-                { label: 'Careers', path: '/careers' },
-                { label: 'Student Savings', path: '/students' },
+                { label: 'Terms & Conditions', path: '/terms' },
+                { label: 'Shipping & Refund Policy', path: '/shipping-refund' },
+                { label: 'Brand Story', path: '/careers' },
+                { label: 'Offers', path: '/students' },
               ].map(item => (
                 <li key={item.label}>
                   <Link to={item.path} className="text-sm font-sans flex items-center w-fit text-grey-beige hover:text-ruby-red hover:translate-x-1 transition-all duration-300 tracking-wide">

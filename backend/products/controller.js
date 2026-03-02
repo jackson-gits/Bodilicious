@@ -32,21 +32,33 @@ export const createProduct = async (req, res) => {
 export const getAllProducts = async (req, res) => {
   try {
     const {
+      search,
       name,
       category,
+      sub_category,
       concern,
       type,
       ingredient,
-      step,
-      priceMin,
       priceMax,
       inStock,
-      sort,
+      sort = "best_selling",
       page = 1,
       limit = 12,
     } = req.query;
 
     const query = { isActive: true };
+    const andConditions = [];
+
+    if (search) {
+      const s = String(search);
+      andConditions.push({
+        $or: [
+          { name: { $regex: s, $options: "i" } },
+          { description: { $regex: s, $options: "i" } },
+          { brand: { $regex: s, $options: "i" } },
+        ]
+      });
+    }
 
     if (name) {
       query.name = { $regex: name, $options: "i" };
@@ -57,28 +69,34 @@ export const getAllProducts = async (req, res) => {
       query.category = { $in: cats };
     }
 
+    if (sub_category) {
+      const subCats = sub_category.split(',').map(c => c.trim().toLowerCase());
+      const regexSubCats = subCats.map(c => new RegExp(`^${c}$`, "i"));
+      query.sub_category = { $in: regexSubCats };
+    }
+
     if (concern) {
       const concernsArray = concern.split(',').map(c => c.trim());
-      query.concerns_targeted = { $in: concernsArray };
+      const regexConcerns = concernsArray.map(c => new RegExp(`^${c}$`, "i"));
+      query.concerns_targeted = { $in: regexConcerns };
     }
 
     if (type) {
       const typesArray = type.split(',').map(t => t.trim());
-      query.product_type = { $in: typesArray };
+      const regexTypes = typesArray.map(t => new RegExp(`^${t}$`, "i"));
+      query.product_type = { $in: regexTypes };
     }
 
     if (ingredient) {
       const ingredientsArray = ingredient.split(',').map(i => i.trim());
-      query.$or = [
-        { "ingredients.key_actives": { $in: ingredientsArray } },
-        { "ingredients.botanical_extracts": { $in: ingredientsArray } },
-        { "ingredients.others": { $in: ingredientsArray } }
-      ];
-    }
-
-    if (step) {
-      const stepsArray = step.split(',').map(s => s.trim());
-      query["usage.routine_step"] = { $in: stepsArray };
+      const regexIngredients = ingredientsArray.map(i => new RegExp(`^${i}$`, "i"));
+      andConditions.push({
+        $or: [
+          { "ingredients.key_actives": { $in: regexIngredients } },
+          { "ingredients.botanical_extracts": { $in: regexIngredients } },
+          { "ingredients.others": { $in: regexIngredients } }
+        ]
+      });
     }
 
     if (inStock === 'true') {
@@ -87,16 +105,22 @@ export const getAllProducts = async (req, res) => {
       query.stock = 0;
     }
 
-    if (priceMin || priceMax) {
-      query.price = {};
-      if (priceMin) query.price.$gte = Number(priceMin);
-      if (priceMax) query.price.$lte = Number(priceMax);
+    if (priceMax) {
+      query.price = { ...(query.price || {}), $lte: Number(priceMax) };
     }
 
-    let sortObj = { createdAt: -1 };
-    if (sort === 'price_asc') sortObj = { price: 1 };
-    else if (sort === 'price_desc') sortObj = { price: -1 };
-    else if (sort === 'best_selling') sortObj = { ratingCount: -1 };
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
+    }
+
+    const sortMap = {
+      best_selling: { ratingCount: -1, rating: -1 },
+      price_asc: { price: 1 },
+      price_desc: { price: -1 },
+      newest: { createdAt: -1 },
+    };
+
+    const sortObj = sortMap[sort] || sortMap.best_selling;
 
     const numLimit = Number(limit);
     const numPage = Number(page);

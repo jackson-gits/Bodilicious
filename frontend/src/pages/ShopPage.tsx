@@ -10,8 +10,14 @@ import { useSearchParams } from 'react-router-dom';
 const CATEGORIES = [
   { value: 'skin', label: 'Skin' },
   { value: 'body', label: 'Body' },
-  { value: 'eye_care', label: 'Eye' },
-  { value: 'hair', label: 'Hair' }
+  { value: 'hair', label: 'Hair' },
+  { value: 'makeup', label: 'Makeup' },
+  { value: 'lip', label: 'Lip' },
+  { value: 'other', label: 'Other' },
+];
+
+const SUBCATEGORIES = [
+  { value: 'eye_care', label: 'Eye Care' },
 ];
 
 const STEPS = [
@@ -46,6 +52,7 @@ export default function ShopPage() {
 
   // URL State
   const selectedCategories = searchParams.get('category')?.split(',') || [];
+  const selectedSubCategories = searchParams.get('sub_category')?.split(',') || [];
   const selectedSteps = searchParams.get('type')?.split(',') || []; // Maps to product_type for Steps/Type
   const selectedConcerns = searchParams.get('concern')?.split(',') || [];
   const selectedIngredients = searchParams.get('ingredient')?.split(',') || [];
@@ -203,6 +210,7 @@ export default function ShopPage() {
                   </div>
 
                   <FilterSection title="Category" items={CATEGORIES} paramKey="category" selected={selectedCategories} />
+                  <FilterSection title="Sub Category" items={SUBCATEGORIES} paramKey="sub_category" selected={selectedSubCategories} />
                   <FilterSection title="Step & Type" items={STEPS} paramKey="type" selected={selectedSteps} />
                   <FilterSection title="Concern" items={CONCERNS} paramKey="concern" selected={selectedConcerns} />
 
@@ -305,6 +313,8 @@ export default function ShopPage() {
               </div>
 
               <FilterSection title="Category" items={CATEGORIES} paramKey="category" selected={selectedCategories} />
+
+              <FilterSection title="Sub Category" items={SUBCATEGORIES} paramKey="sub_category" selected={selectedSubCategories} />
 
               {/* Using Type for 'Step' and 'Type of Product' loosely based on db fields */}
               <FilterSection title="Step & Type" items={STEPS} paramKey="type" selected={selectedSteps} />

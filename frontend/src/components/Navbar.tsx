@@ -4,9 +4,11 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import { useApp } from '../context/AppContext';
 
+type ShopFilter = 'all' | 'skin' | 'hair' | 'body' | 'lip' | 'makeup';
+
 type MegaMenuConfig = {
   label: string;
-  filter: 'all' | 'skin' | 'hair' | 'other';
+  filter: ShopFilter;
   subLabel?: string;
   items: { label: string; filter: string }[];
 };
@@ -20,49 +22,50 @@ const MEGA_MENU_DATA: Record<string, MegaMenuConfig> = {
       { label: "Serums", filter: "serum" },
       { label: "Moisturizers", filter: "moisturizer" },
       { label: "Sunscreens", filter: "sunscreen" },
-      { label: "Face Wash", filter: "cleanser" },
-      { label: "Face & Body Wash", filter: "cleanser" },
-      { label: "Gel", filter: "soothing_gel" },
-      { label: "Acne Care", filter: "cleanser" }
-    ]
+      { label: "Cleansers / Face Wash", filter: "cleanser" },
+      { label: "Soothing Gel", filter: "soothing_gel" },
+      { label: "Night Cream", filter: "night_cream" },
+      { label: "Eye Care", filter: "eye_care" },
+    ],
   },
+
   hairCare: {
     label: "Hair Care",
     filter: "hair",
     subLabel: "View All Hair Care →",
     items: [
-      { label: "Hair Serums", filter: "hair_serum" },
-      { label: "Hair Oils", filter: "hair_oil" },
       { label: "Shampoos", filter: "shampoo" },
       { label: "Shampoo Bars", filter: "shampoo_bar" },
-      { label: "Conditioner", filter: "conditioner" }
-    ]
+      { label: "Hair Serums", filter: "hair_serum" },
+      { label: "Hair Oils", filter: "hair_oil" },
+      { label: "Scalp Treatments", filter: "scalp_treatment" },
+      { label: "Treatments", filter: "treatment" },
+    ],
   },
-  eyeLipMakeup: {
-    label: "Eye Care, Lip Care & Makeup",
-    filter: "other",
-    subLabel: "View All Eye, Lip & Makeup →",
+
+  lipCare: {
+    label: "Lip Care",
+    filter: "lip",
+    subLabel: "View All Lip Care →",
+    items: [{ label: "Lip Balm", filter: "lip_balm" }],
+  },
+
+  makeup: {
+    label: "Makeup",
+    filter: "makeup",
+    subLabel: "View All Makeup →",
     items: [
-      { label: "Eye Care", filter: "eye_care" },
-      { label: "Under Eye Gel", filter: "eye_care" },
-      { label: "Eye Cream", filter: "eye_care" },
-      { label: "Lip Care", filter: "lip_balm" },
-      { label: "Lip Balm", filter: "lip_balm" },
-      { label: "Lip Tint", filter: "lip_balm" },
-      { label: "Makeup", filter: "foundation" } // Defaulting to foundation for makeup till more items 
-    ]
+      { label: "Foundation", filter: "foundation" },
+      { label: "Lipstick", filter: "lipstick" },
+    ],
   },
-  bath: {
-    label: "Bath & Body (Soaps)",
-    filter: "other",
+
+  bathBody: {
+    label: "Bath & Body",
+    filter: "body",
     subLabel: "View All Bath & Body →",
-    items: [
-      { label: "Body Wash", filter: "cleanser" },
-      { label: "Face & Body Wash", filter: "cleanser" },
-      { label: "Herbal Soap", filter: "soap" },
-      { label: "Bath Bars", filter: "soap" }
-    ]
-  }
+    items: [{ label: "Soaps", filter: "soap" }],
+  },
 };
 
 const NAV_LINKS = [
@@ -76,6 +79,7 @@ export default function Navbar() {
   const { cartCount, wishlist, currentPage, authStatus, setShopFilter, products, navigateTo } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -95,17 +99,24 @@ export default function Navbar() {
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase();
-    return products.filter((p) => {
-      const allIngredients = [
-        ...(p.ingredients?.key_actives || []),
-        ...(p.ingredients?.botanical_extracts || []),
-        ...(p.ingredients?.others || [])
-      ].join(' ').toLowerCase();
 
-      return p.name.toLowerCase().includes(query) ||
-        p.description.toLowerCase().includes(query) ||
-        allIngredients.includes(query);
-    }).slice(0, 5);
+    return products
+      .filter((p) => {
+        const allIngredients = [
+          ...(p.ingredients?.key_actives || []),
+          ...(p.ingredients?.botanical_extracts || []),
+          ...(p.ingredients?.others || []),
+        ]
+          .join(' ')
+          .toLowerCase();
+
+        return (
+          p.name.toLowerCase().includes(query) ||
+          p.description.toLowerCase().includes(query) ||
+          allIngredients.includes(query)
+        );
+      })
+      .slice(0, 5);
   }, [searchQuery, products]);
 
   useEffect(() => {
@@ -114,12 +125,15 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleNav = useCallback((filter?: 'all' | 'skin' | 'hair' | 'other') => {
-    if (filter) setShopFilter(filter);
-    setMenuOpen(false);
-    setSearchOpen(false);
-    setMegaMenuOpen(false);
-  }, [setShopFilter]);
+  const handleNav = useCallback(
+    (filter?: ShopFilter) => {
+      if (filter) setShopFilter(filter);
+      setMenuOpen(false);
+      setSearchOpen(false);
+      setMegaMenuOpen(false);
+    },
+    [setShopFilter]
+  );
 
   const handleMouseEnterMegaMenu = () => {
     if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current);
@@ -144,9 +158,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled || menuOpen
-        ? 'bg-white shadow-sm border-b border-silk'
-        : 'bg-white/95 backdrop-blur-sm'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled || menuOpen ? 'bg-white shadow-sm border-b border-silk' : 'bg-white/95 backdrop-blur-sm'
         }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -158,7 +170,7 @@ export default function Navbar() {
           </div>
 
           <div className="hidden md:flex flex-1 justify-center items-center gap-8">
-            {NAV_LINKS.map(link => (
+            {NAV_LINKS.map((link) => (
               <div
                 key={link.label}
                 className="relative h-full flex items-center"
@@ -167,7 +179,7 @@ export default function Navbar() {
               >
                 <Link
                   to={link.page === 'home' ? '/' : `/${link.page}`}
-                  onClick={() => handleNav('filter' in link ? link.filter as any : undefined)}
+                  onClick={() => handleNav(undefined)}
                   className={`flex items-center gap-1 text-sm font-sans tracking-widest uppercase transition-colors duration-200 py-6 ${currentPage === link.page || (link.isMegaMenu && megaMenuOpen)
                     ? 'text-ruby-red'
                     : 'text-dark-red/70 hover:text-dark-red'
@@ -175,7 +187,10 @@ export default function Navbar() {
                 >
                   {link.label}
                   {link.isMegaMenu && (
-                    <ChevronDown size={14} className={`transition-transform duration-300 ${megaMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-300 ${megaMenuOpen ? 'rotate-180' : ''}`}
+                    />
                   )}
                 </Link>
 
@@ -186,15 +201,18 @@ export default function Navbar() {
                       }`}
                     style={{ maxHeight: '600px' }}
                   >
-                    <div className="mx-auto px-8 py-10 grid grid-cols-4 gap-8">
+                    <div className="mx-auto px-8 py-10 grid grid-cols-5 gap-8">
                       {Object.entries(MEGA_MENU_DATA).map(([key, section]) => (
-                        <div key={key} className="flex flex-col h-full border-r border-silk-light last:border-r-0 pr-6">
+                        <div
+                          key={key}
+                          className="flex flex-col h-full border-r border-silk-light last:border-r-0 pr-6"
+                        >
                           <h3 className="font-serif text-dark-red text-lg mb-4">{section.label}</h3>
                           <ul className="space-y-3 flex-1">
                             {section.items.map((item, idx) => (
                               <li key={idx}>
                                 <Link
-                                  to={`/shop?filter=${section.filter}&sub=${item.filter}`}
+                                  to={`/shop?category=${section.filter}&sub_category=${item.filter}`}
                                   onClick={() => handleNav(section.filter)}
                                   className="text-sm font-sans text-grey-beige hover:text-ruby-red transition-colors inline-block relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[1px] after:bg-ruby-red hover:after:w-full after:transition-all after:duration-300"
                                 >
@@ -206,7 +224,7 @@ export default function Navbar() {
 
                           {section.subLabel && (
                             <Link
-                              to={`/shop?filter=${section.filter}`}
+                              to={`/shop?category=${section.filter}`}
                               onClick={() => handleNav(section.filter)}
                               className="mt-6 text-xs font-sans font-medium tracking-widest uppercase text-ruby-red hover:text-dark-red transition-colors"
                             >
@@ -225,21 +243,22 @@ export default function Navbar() {
           <div className="flex items-center gap-4 w-32 md:w-48 justify-end">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className={`hidden md:flex transition-colors ${searchOpen ? 'text-ruby-red' : 'text-dark-red/60 hover:text-dark-red'}`}
+              className={`hidden md:flex transition-colors ${searchOpen ? 'text-ruby-red' : 'text-dark-red/60 hover:text-dark-red'
+                }`}
             >
               <Search size={18} className={searchOpen ? 'scale-110 transition-transform' : 'transition-transform'} />
             </button>
+
             <Link
               to="/chat"
-              className={`text-dark-red/60 hover:text-ruby-red transition-colors relative ${currentPage === 'chat' ? 'text-dark-red' : ''}`}
+              className={`text-dark-red/60 hover:text-ruby-red transition-colors relative ${currentPage === 'chat' ? 'text-dark-red' : ''
+                }`}
               title="Chat with Beauty Advisor"
             >
               <MessageCircle size={18} />
             </Link>
-            <Link
-              to="/wishlist"
-              className="relative text-dark-red/60 hover:text-ruby-red transition-colors"
-            >
+
+            <Link to="/wishlist" className="relative text-dark-red/60 hover:text-ruby-red transition-colors">
               <Heart size={18} />
               {wishlist.length > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-ruby-red text-white text-[10px] rounded-full flex items-center justify-center font-sans">
@@ -247,6 +266,7 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
+
             {authStatus === 'loading' ? (
               <div className="w-[18px] h-[18px] rounded-full border-2 border-dark-red/20 border-t-dark-red/60 animate-spin" />
             ) : (
@@ -258,10 +278,8 @@ export default function Navbar() {
                 <User size={18} />
               </Link>
             )}
-            <Link
-              to="/cart"
-              className="relative text-dark-red/60 hover:text-dark-red transition-colors"
-            >
+
+            <Link to="/cart" className="relative text-dark-red/60 hover:text-dark-red transition-colors">
               <ShoppingBag size={18} />
               {cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-dark-red text-silk text-[10px] rounded-full flex items-center justify-center font-sans">
@@ -269,10 +287,8 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
-            <button
-              className="md:hidden text-dark-red/70 hover:text-dark-red"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
+
+            <button className="md:hidden text-dark-red/70 hover:text-dark-red" onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
@@ -282,7 +298,9 @@ export default function Navbar() {
       {/* Search Overlay */}
       <div
         className={`absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md border-b border-silk transition-all duration-500 ease-in-out overflow-hidden shadow-sm ${searchOpen
-          ? (searchQuery.trim() && searchResults.length > 0 ? 'max-h-[600px] py-4 opacity-100' : 'max-h-24 py-4 opacity-100')
+          ? searchQuery.trim() && searchResults.length > 0
+            ? 'max-h-[600px] py-4 opacity-100'
+            : 'max-h-24 py-4 opacity-100'
           : 'max-h-0 py-0 opacity-0 border-transparent shadow-none'
           }`}
       >
@@ -299,7 +317,10 @@ export default function Navbar() {
             />
             <button
               type="button"
-              onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+              onClick={() => {
+                setSearchOpen(false);
+                setSearchQuery('');
+              }}
               className="absolute right-3 text-gray-400 hover:text-dark-red transition-colors"
             >
               <X size={18} />
@@ -307,9 +328,12 @@ export default function Navbar() {
           </form>
 
           {/* Search Results Dropdown */}
-          <div className={`transition-all duration-300 ease-in-out flex flex-col ${searchQuery.trim() && searchResults.length > 0 ? 'opacity-100 mt-4 translate-y-0' : 'opacity-0 h-0 overflow-hidden -translate-y-4'}`}>
+          <div
+            className={`transition-all duration-300 ease-in-out flex flex-col ${searchQuery.trim() && searchResults.length > 0 ? 'opacity-100 mt-4 translate-y-0' : 'opacity-0 h-0 overflow-hidden -translate-y-4'
+              }`}
+          >
             <div className="bg-white/80 backdrop-blur-md border flex flex-col border-silk rounded shadow-sm">
-              {searchResults.map(p => (
+              {searchResults.map((p) => (
                 <button
                   key={p.pid}
                   type="button"
@@ -323,12 +347,15 @@ export default function Navbar() {
                   <img src={p.images[0]} alt={p.name} className="w-12 h-12 object-cover rounded" />
                   <div className="flex-1">
                     <h4 className="font-serif text-dark-red text-base leading-tight">{p.name}</h4>
-                    <p className="text-[10px] font-sans text-grey-beige uppercase tracking-wider mt-1">{p.category} care</p>
+                    <p className="text-[10px] font-sans text-grey-beige uppercase tracking-wider mt-1">
+                      {p.category}
+                    </p>
                   </div>
-                  <span className="font-sans text-sm text-dark-red">${p.price.toFixed(2)}</span>
+                  <span className="font-sans text-sm text-dark-red">₹{Number(p.price || 0).toFixed(0)}</span>
                 </button>
               ))}
             </div>
+
             <button
               type="button"
               onClick={() => {
@@ -345,23 +372,29 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-silk overflow-y-auto" style={{ maxHeight: 'calc(100vh - 64px)' }}>
           <div className="px-6 py-4">
-            {NAV_LINKS.map(link => (
+            {NAV_LINKS.map((link) => (
               <div key={link.label} className="border-b border-silk-light last:border-b-0 py-1">
                 {link.isMegaMenu ? (
-                  // Mobile Accordion for Mega Menu items
                   <div className="space-y-1">
                     <button
                       onClick={() => setMegaMenuOpen(!megaMenuOpen)}
                       className="w-full flex items-center justify-between text-left text-sm font-sans font-medium tracking-widest uppercase text-dark-red py-3"
                     >
                       {link.label}
-                      <ChevronDown size={16} className={`transition-transform duration-300 text-ruby-red ${megaMenuOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-300 text-ruby-red ${megaMenuOpen ? 'rotate-180' : ''}`}
+                      />
                     </button>
 
-                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${megaMenuOpen ? 'max-h-[1000px] opacity-100 pb-3' : 'max-h-0 opacity-0'}`}>
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${megaMenuOpen ? 'max-h-[1000px] opacity-100 pb-3' : 'max-h-0 opacity-0'
+                        }`}
+                    >
                       <div className="pl-4 space-y-5 border-l-2 border-silk-light ml-2">
                         {Object.entries(MEGA_MENU_DATA).map(([key, section]) => (
                           <div key={key}>
@@ -370,7 +403,7 @@ export default function Navbar() {
                               {section.items.map((item, idx) => (
                                 <li key={idx}>
                                   <Link
-                                    to={`/shop?filter=${section.filter}&sub=${item.filter}`}
+                                    to={`/shop?category=${section.filter}&sub_category=${item.filter}`}
                                     onClick={() => handleNav(section.filter)}
                                     className="block text-sm font-sans text-grey-beige hover:text-ruby-red transition-colors py-1"
                                   >
@@ -379,8 +412,9 @@ export default function Navbar() {
                                 </li>
                               ))}
                             </ul>
+
                             <Link
-                              to={`/shop?filter=${section.filter}`}
+                              to={`/shop?category=${section.filter}`}
                               onClick={() => handleNav(section.filter)}
                               className="block mt-3 text-xs font-sans tracking-widest uppercase text-ruby-red"
                             >
@@ -394,7 +428,7 @@ export default function Navbar() {
                 ) : (
                   <Link
                     to={link.page === 'home' ? '/' : `/${link.page}`}
-                    onClick={() => handleNav('filter' in link ? link.filter as any : undefined)}
+                    onClick={() => handleNav(undefined)}
                     className="block w-full text-left text-sm font-sans font-medium tracking-widest uppercase text-dark-red/80 hover:text-ruby-red py-3 transition-colors"
                   >
                     {link.label}

@@ -42,7 +42,7 @@ interface AppContextType {
   currentPage: Page;
   selectedProductPid: string | null;
   selectedOrderId: string | null;
-  shopFilter: 'all' | 'skin' | 'hair' | 'other';
+  shopFilter: 'all' | 'skin' | 'hair' | 'body' | 'lip' | 'makeup' | 'other';
 
   cartItems: CartItem[];
   wishlist: Product[];
@@ -51,6 +51,8 @@ interface AppContextType {
 
   user: User | null;
   authStatus: AuthStatus;
+  authLoading: boolean;
+  isAuthenticated: boolean;
 
   isChatOpen: boolean;
   setIsChatOpen: (isOpen: boolean) => void;
@@ -65,7 +67,7 @@ interface AppContextType {
   getAuthHeaders: () => Promise<HeadersInit>;
 
   navigateTo: (page: Page, pid?: string, orderId?: string) => void;
-  setShopFilter: (f: 'all' | 'skin' | 'hair' | 'other') => void;
+  setShopFilter: (f: 'all' | 'skin' | 'hair' | 'body' | 'lip' | 'makeup' | 'other') => void;
   fetchProducts: (query?: string) => Promise<void>;
 
   addToCart: (product: Product, quantity?: number) => void;
@@ -109,7 +111,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedProductPid, setSelectedProductPid] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [shopFilter, setShopFilter] =
-    useState<'all' | 'skin' | 'hair' | 'other'>('all');
+    useState<'all' | 'skin' | 'hair' | 'body' | 'lip' | 'makeup' | 'other'>('all');
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
@@ -522,6 +524,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         recentlyBought,
         user,
         authStatus,
+        authLoading: authStatus === 'loading',
+        isAuthenticated: !!user && authStatus === 'authenticated',
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,

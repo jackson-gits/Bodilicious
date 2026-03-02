@@ -14,17 +14,23 @@ import { useApp } from '../context/AppContext';
 import StarRating from '../components/StarRating';
 import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
+import { useSearchParams } from 'react-router-dom';
 import { Product } from '../types';
 
+
 export default function ProductPage() {
+  const [searchParams] = useSearchParams();
+
   const {
-    products,
-    selectedProductPid,
+    products, // Keep products for related products
+    selectedProductPid: contextPid,
     addToCart,
     toggleWishlist,
     isInWishlist,
     navigateTo,
   } = useApp();
+
+  const productId = searchParams.get('id') || contextPid;
 
   const shouldReduceMotion = useReducedMotion();
   const fadeUp = getAccessibleVariant(fadeUpVariant, !!shouldReduceMotion);
@@ -39,7 +45,7 @@ export default function ProductPage() {
   const [activeTab, setActiveTab] = useState<'ingredients' | 'uses' | 'symptoms'>('ingredients');
 
   useEffect(() => {
-    if (!selectedProductPid) {
+    if (!productId) {
       setError('No product selected');
       setLoading(false);
       return;
@@ -48,7 +54,7 @@ export default function ProductPage() {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`http://localhost:5000/api/v1/products/${selectedProductPid}`);
+        const res = await fetch(`http://localhost:5000/api/v1/products/${productId}`);
         const data = await res.json();
 
         if (!res.ok || !data.success) {
@@ -64,7 +70,7 @@ export default function ProductPage() {
     };
 
     fetchProduct();
-  }, [selectedProductPid]);
+  }, [productId]);
 
   // reset UI state when product changes
   useEffect(() => {
@@ -77,7 +83,7 @@ export default function ProductPage() {
   const inWishlist = product ? isInWishlist(product.pid) : false;
 
   const related = useMemo(
-    () => product ? products.filter(p => p.type === product.type && p.pid !== product.pid).slice(0, 4) : [],
+    () => product ? products.filter(p => p.category === product.category && p.pid !== product.pid).slice(0, 4) : [],
     [products, product]
   );
 
@@ -182,7 +188,7 @@ export default function ProductPage() {
           {/* Product Details Section */}
           <m.div variants={fadeUp} className="flex flex-col py-2">
             <m.p variants={fadeUp} className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-3">
-              {product.type === 'skin' ? 'Skin Care' : product.type === 'hair' ? 'Hair Care' : 'Body Care'}
+              {product.category === 'skin' ? 'Skin Care' : product.category === 'hair' ? 'Hair Care' : 'Body Care'}
             </m.p>
 
             <m.h1 variants={fadeUp} className="text-4xl md:text-5xl font-serif text-dark-red mb-4 leading-tight">
@@ -287,10 +293,10 @@ export default function ProductPage() {
           <div className="min-h-[200px] font-sans text-dark-red/80 text-sm leading-relaxed px-2">
             {activeTab === 'ingredients' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(product.ingredients ?? []).map((i, idx) => (
+                {product.ingredients && Object.values(product.ingredients).flat().filter(Boolean).map((i, idx) => (
                   <div key={idx} className="flex items-center gap-4 p-4 bg-silk-light/50 border border-silk/50 rounded-sm hover:border-silk transition-colors">
                     <div className="w-1.5 h-1.5 rounded-full bg-indian-red shrink-0" />
-                    <span>{i}</span>
+                    <span>{String(i)}</span>
                   </div>
                 ))}
               </div>
@@ -298,7 +304,7 @@ export default function ProductPage() {
 
             {activeTab === 'uses' && (
               <ul className="space-y-6 max-w-2xl">
-                {(product.uses ?? []).map((u, i) => (
+                {(product.benefits ?? []).map((u, i) => (
                   <li key={i} className="flex gap-5 items-start">
                     <span className="flex items-center justify-center w-8 h-8 rounded-full border border-silk text-dark-red text-xs font-semibold shrink-0">
                       {i + 1}
@@ -311,7 +317,7 @@ export default function ProductPage() {
 
             {activeTab === 'symptoms' && (
               <div className="flex flex-wrap gap-4">
-                {(product.symptomsCured ?? []).map((s, idx) => (
+                {(product.concerns_targeted ?? []).map((s, idx) => (
                   <span key={idx} className="px-6 py-3 border border-silk text-dark-red bg-white text-xs uppercase tracking-widest hover:bg-silk-light transition-colors cursor-default">
                     {s}
                   </span>

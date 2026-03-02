@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import Footer from '../components/Footer';
 
 export default function CartPage() {
-  const { cartItems, removeFromCart, updateQuantity, cartTotal, navigateTo } = useApp();
+  const { cartItems, removeFromCart, updateQuantity, cartTotal, navigateTo, isAuthenticated } = useApp();
   const navigate = useNavigate();
 
   const validCartItems = cartItems.filter(item => item && item.product);
@@ -57,7 +57,7 @@ export default function CartPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-[10px] font-sans tracking-widest uppercase text-grey-beige mb-1">
-                        {item.product.type === 'skin' ? 'Skin Care' : item.product.type === 'hair' ? 'Hair Care' : 'Body Care'}
+                        {item.product.category === 'skin' ? 'Skin Care' : item.product.category === 'hair' ? 'Hair Care' : 'Body Care'}
                       </p>
                       <h3 className="font-serif text-dark-red text-base">{item.product.name}</h3>
                     </div>
@@ -126,7 +126,16 @@ export default function CartPage() {
               </div>
 
               <button
-                onClick={() => navigate('/shipping')}
+                onClick={() => {
+                  if (isAuthenticated) {
+                    navigate('/shipping');
+                  } else {
+                    navigate('/signin', {
+                      state: { returnTo: '/shipping', reason: 'checkout' },
+                      replace: true
+                    });
+                  }
+                }}
                 className="w-full bg-dark-red text-silk py-4 font-sans text-xs tracking-widest uppercase hover:bg-ruby-red transition-colors flex items-center justify-center gap-2 mb-3">
                 Proceed to Checkout <ArrowRight size={14} />
               </button>

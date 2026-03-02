@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 
 type Mode = 'signin' | 'signup';
 
 export default function SignInPage() {
-    const { signInWithGoogle, signInWithEmail, signUpWithEmail, authStatus, navigateTo } = useApp();
+    const { signInWithGoogle, signInWithEmail, signUpWithEmail, authStatus, authLoading, isAuthenticated, navigateTo } = useApp();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     const [mode, setMode] = useState<Mode>('signin');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,10 +21,19 @@ export default function SignInPage() {
 
     // If already authenticated, gracefully redirect back to home or account
     useEffect(() => {
-        if (authStatus === 'authenticated') {
-            navigateTo('account');
+        if (authLoading) return;
+
+        if (isAuthenticated) {
+            const rawReturnTo = location.state?.returnTo;
+            let safeReturnTo = '/account';
+
+            if (typeof rawReturnTo === 'string' && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//')) {
+                safeReturnTo = rawReturnTo;
+            }
+
+            navigate(safeReturnTo, { replace: true });
         }
-    }, [authStatus, navigateTo]);
+    }, [isAuthenticated, authLoading, location.state, navigate]);
 
     const handleGoogleSignIn = async () => {
         try {
@@ -99,9 +111,17 @@ export default function SignInPage() {
                 <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-4">
                     {mode === 'signin' ? 'Welcome Back To' : 'Join'}
                 </p>
-                <h1 className="text-4xl md:text-5xl font-serif text-dark-red mb-8 tracking-tight">
+                <h1 className="text-4xl md:text-5xl font-serif text-dark-red mb-2 tracking-tight">
                     Bodilicious
                 </h1>
+                {location.state?.reason === 'checkout' && !error && (
+                    <p className="text-[11px] font-sans tracking-widest text-indian-red mb-8">
+                        Please sign in to securely checkout
+                    </p>
+                )}
+                {(!location.state?.reason || location.state?.reason !== 'checkout' || error) && (
+                    <div className="mb-8 block" />
+                )}
 
                 {error && (
                     <div className="mb-6 px-4 py-3 bg-indian-red/5 border border-indian-red/20 text-indian-red text-xs font-sans tracking-wide">

@@ -1,6 +1,7 @@
 import { ArrowRight, Leaf, Shield, Sparkles, ChevronRight, Loader2 } from 'lucide-react';
 import { useMemo, useCallback } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import ProductCard from '../components/ProductCard';
 import Footer from '../components/Footer';
@@ -47,15 +48,23 @@ const PROMISES = [
 ];
 
 export default function HomePage() {
-  const { navigateTo, setShopFilter, products, isLoading } = useApp();
+  const { setShopFilter, products, isLoading } = useApp();
+  const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const fadeUp = getAccessibleVariant(fadeUpVariant, !!shouldReduceMotion);
   const stagger = getAccessibleVariant(staggerContainerVariant, !!shouldReduceMotion);
 
-  const handleShop = useCallback((filter: 'all' | 'skin' | 'hair' | 'other') => {
+  const handleShop = useCallback((filter: 'all' | 'skin' | 'hair' | 'body' | 'lip' | 'makeup' | 'other') => {
     setShopFilter(filter);
-    navigateTo('shop');
-  }, [navigateTo, setShopFilter]);
+
+    // Use navigate to include URL parameter so ShopPage registers the category
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (filter === 'all') {
+      navigate('/shop');
+    } else {
+      navigate(`/shop?category=${filter}`);
+    }
+  }, [navigate, setShopFilter]);
 
   const bestSellers = useMemo(() => products.filter((_, i) => [0, 1, 2, 4].includes(i)), [products]);
 

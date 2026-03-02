@@ -5,14 +5,14 @@ import { useApp } from '../context/AppContext';
 import { Link } from 'react-router-dom';
 import StarRating from './StarRating';
 import { m, useReducedMotion } from 'framer-motion';
-import { hoverLift, hoverLiftSubtle, getAccessibleVariant } from '../utils/motionTokens';
+import { hoverLift, hoverLiftSubtle } from '../utils/motionTokens';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export default memo(function ProductCard({ product }: ProductCardProps) {
-  const { navigateTo, addToCart, toggleWishlist, isInWishlist } = useApp();
+  const { addToCart, toggleWishlist, isInWishlist } = useApp();
   const inWishlist = isInWishlist(product.pid);
 
   const shouldReduceMotion = useReducedMotion();
@@ -27,10 +27,6 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
     >
       <Link
         to={`/product?id=${product.pid}`}
-        onClick={(e) => {
-          e.preventDefault();
-          navigateTo('product', product.pid);
-        }}
         className="relative overflow-hidden cursor-pointer bg-silk-light aspect-[3/4] block rounded-sm"
       >
         <m.img
@@ -83,14 +79,10 @@ export default memo(function ProductCard({ product }: ProductCardProps) {
       <div className="pt-3 pb-1 px-1">
         <Link
           to={`/product?id=${product.pid}`}
-          onClick={(e) => {
-            e.preventDefault();
-            navigateTo('product', product.pid);
-          }}
           className="block text-left w-full"
         >
           <p className="text-[10px] font-sans tracking-widest uppercase text-grey-beige mb-1">
-            {product.type === 'skin' ? 'Skin Care' : product.type === 'hair' ? 'Hair Care' : 'Body Care'}
+            {product.category === 'skin' ? 'Skin Care' : product.category === 'hair' ? 'Hair Care' : 'Body Care'}
           </p>
           <h3 className="font-serif text-dark-red text-sm leading-snug mb-2 group-hover:text-ruby-red transition-colors">
             {product.name}

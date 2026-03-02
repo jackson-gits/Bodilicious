@@ -166,7 +166,7 @@ export default function AccountPage() {
                     </div>
                     <div className="w-full">
                       <h3 className="font-serif text-dark-red text-sm mb-1 line-clamp-1">{product.name}</h3>
-                      <p className="font-sans text-xs text-grey-beige uppercase tracking-wider">{product.type}</p>
+                      <p className="font-sans text-xs text-grey-beige uppercase tracking-wider">{product.category}</p>
                     </div>
                   </button>
                 ))}

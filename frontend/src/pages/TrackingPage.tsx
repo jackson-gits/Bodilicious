@@ -69,7 +69,7 @@ export default function TrackingPage() {
             }
 
             const headers = await getAuthHeaders();
-            const res = await fetch(`http://localhost:5000/api/v1/orders/shiprocket/${order.awb}`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/orders/shiprocket/${order.awb}`, {
                 headers
             });
 

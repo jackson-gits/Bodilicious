@@ -444,6 +444,53 @@ export const updateShippingAddress = async (req, res) => {
       pincode: pincode || order.shippingDetails?.pincode,
     };
 
+    /* =========================================================
+       Sync Address with Shiprocket if order has been pushed
+    ========================================================= */
+    if (order.shiprocketOrderId && process.env.SHIPROCKET_EMAIL) {
+      try {
+        const token = await getShiprocketToken();
+
+        const nameParts = (order.shippingDetails.name || "").trim().split(" ");
+        const firstName = nameParts[0] || "Customer";
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "User";
+
+        const safePhone = (order.shippingDetails.phone || "").replace(/\D/g, "");
+        const finalPhone = safePhone.length >= 10 ? safePhone.slice(-10) : "9999999999";
+
+        const safePincode = (order.shippingDetails.pincode || "").replace(/\D/g, "");
+        const finalPincode = safePincode.length === 6 ? safePincode : "110001";
+
+        const updatePayload = {
+          order_id: order.shiprocketOrderId,
+          shipping_customer_name: firstName,
+          shipping_last_name: lastName,
+          shipping_phone: finalPhone,
+          shipping_address: order.shippingDetails.address || "No Address Provided",
+          shipping_city: order.shippingDetails.city || "Delhi",
+          shipping_state: order.shippingDetails.state || "Delhi",
+          shipping_country: "India",
+          shipping_pincode: finalPincode
+        };
+
+        const shipRes = await fetch("https://apiv2.shiprocket.in/v1/external/orders/address/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(updatePayload)
+        });
+
+        if (!shipRes.ok) {
+          const errText = await shipRes.text();
+          console.error("Failed to update Shiprocket address:", errText);
+        }
+      } catch (shipErr) {
+        console.error("Shiprocket update address error:", shipErr.message);
+      }
+    }
+
     await order.save();
     const populatedOrder = await Order.findById(order._id).populate("items.product");
 

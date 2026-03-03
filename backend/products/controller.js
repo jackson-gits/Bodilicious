@@ -160,13 +160,23 @@ export const getProductByPid = async (req, res) => {
     const product = await Product.findOne({
       pid: req.params.pid,
       isActive: true,
-    }).lean();
+    })
+      .populate("reviews.user", "name")
+      .lean();
 
     if (!product) {
       return res.status(404).json({
         success: false,
         message: "Product not found",
       });
+    }
+
+    // Map populated user object to just the name string for the frontend
+    if (product.reviews && product.reviews.length > 0) {
+      product.reviews = product.reviews.map(r => ({
+        ...r,
+        user: r.user?.name || "Verified Buyer"
+      }));
     }
 
     res.json({
@@ -240,5 +250,45 @@ export const deleteProductByPid = async (req, res) => {
       success: false,
       message: err.message,
     });
+  }
+};
+
+/**
+ * ADD REVIEW TO PRODUCT
+ * POST /api/products/:pid/reviews
+ */
+export const addReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+
+    const product = await Product.findOne({ pid: req.params.pid, isActive: true });
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    const alreadyReviewed = product.reviews.find(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+
+    if (alreadyReviewed) {
+      return res.status(400).json({ success: false, message: "Product already reviewed" });
+    }
+
+    const review = {
+      user: req.user._id,
+      rating: Number(rating),
+      comment: comment || "",
+    };
+
+    product.reviews.push(review);
+    product.ratingCount = product.reviews.length;
+    product.rating = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
+
+    await product.save();
+
+    res.status(201).json({ success: true, message: "Review added" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

@@ -7,8 +7,9 @@ import {
   Minus,
   Plus,
   Loader2,
+  Star,
 } from 'lucide-react';
-import { m, useReducedMotion } from 'framer-motion';
+import { m, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { fadeUpVariant, staggerContainerVariant, getAccessibleVariant } from '../utils/motionTokens';
 import { useApp } from '../context/AppContext';
 import StarRating from '../components/StarRating';
@@ -28,6 +29,8 @@ export default function ProductPage() {
     toggleWishlist,
     isInWishlist,
     navigateTo,
+    authStatus,
+    getAuthHeaders,
   } = useApp();
 
   const productId = searchParams.get('id') || contextPid;
@@ -44,6 +47,30 @@ export default function ProductPage() {
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState<'ingredients' | 'uses' | 'symptoms'>('ingredients');
 
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewFeedback, setReviewFeedback] = useState<{ type: 'error' | 'success', msg: string } | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+
+  const fetchProduct = useCallback(async (isInitial = true) => {
+    try {
+      if (isInitial) setLoading(true);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/products/${productId}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error('Failed to fetch product');
+      }
+
+      setProduct(data.data);
+    } catch {
+      setError('Product not found');
+    } finally {
+      if (isInitial) setLoading(false);
+    }
+  }, [productId]);
+
   useEffect(() => {
     if (!productId) {
       setError('No product selected');
@@ -51,26 +78,39 @@ export default function ProductPage() {
       return;
     }
 
-    const fetchProduct = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`http://localhost:5000/api/v1/products/${productId}`);
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          throw new Error('Failed to fetch product');
-        }
-
-        setProduct(data.data);
-      } catch {
-        setError('Product not found');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProduct();
-  }, [productId]);
+  }, [fetchProduct, productId]);
+
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (authStatus !== 'authenticated') {
+      setReviewFeedback({ type: 'error', msg: 'Please sign in to write a review' });
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    setReviewFeedback(null);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/products/${product?.pid}/reviews`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to submit review');
+
+      setReviewFeedback({ type: 'success', msg: 'Review submitted successfully!' });
+      setReviewComment('');
+      setReviewRating(5);
+
+      fetchProduct(false);
+    } catch (err: any) {
+      setReviewFeedback({ type: 'error', msg: err.message });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // reset UI state when product changes
   useEffect(() => {
@@ -328,24 +368,25 @@ export default function ProductPage() {
         </m.div>
 
         {/* Reviews Section */}
-        {product.reviews && product.reviews.length > 0 && (
-          <m.div
-            className="mt-32 max-w-5xl mx-auto"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={stagger}
-          >
-            <m.div variants={fadeUp} className="text-center mb-16">
-              <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-3">
-                Real Results
-              </p>
-              <h2 className="font-serif text-dark-red text-3xl md:text-4xl">Customer Reviews</h2>
-            </m.div>
+        <m.div
+          className="mt-32 max-w-5xl mx-auto"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={stagger}
+        >
+          <m.div variants={fadeUp} className="text-center mb-16">
+            <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-3">
+              Real Results
+            </p>
+            <h2 className="font-serif text-dark-red text-3xl md:text-4xl">Customer Reviews</h2>
+          </m.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {product.reviews.map((review, idx) => (
-                <m.div key={idx} variants={fadeUp} className="bg-silk-light p-8 lg:p-10 border border-silk/30 hover:border-silk transition-colors">
+          {/* Reviews List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
+            {product.reviews && product.reviews.length > 0 ? (
+              product.reviews.map((review, idx) => (
+                <m.div key={idx} variants={fadeUp} className="bg-silk-light p-8 lg:p-10 border border-silk/30 hover:border-silk transition-colors shadow-sm">
                   <StarRating rating={review.rating} size={14} />
                   <p className="font-sans text-dark-red/80 text-sm leading-relaxed mt-5 mb-8 italic">
                     "{review.comment}"
@@ -353,14 +394,110 @@ export default function ProductPage() {
                   <div className="border-t border-silk/60 pt-5 flex items-center justify-between">
                     <p className="text-sm font-sans font-semibold text-dark-red">{review.user}</p>
                     <p className="text-[10px] font-sans text-grey-beige uppercase tracking-widest">
-                      {"createdAt" in review ? (review as { createdAt?: string }).createdAt : "Verified Buyer"}
+                      {"createdAt" in review ? new Date((review as any).createdAt).toLocaleDateString() : "Verified Buyer"}
                     </p>
                   </div>
                 </m.div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <m.div variants={fadeUp} className="col-span-1 md:col-span-2 text-center py-12 bg-silk-light/30 border border-silk/50 border-dashed rounded-sm">
+                <p className="text-sm font-sans italic text-dark-red/60">No reviews yet. Be the first to share your thoughts!</p>
+              </m.div>
+            )}
+          </div>
+
+          {/* Write a Review Section */}
+          <m.div variants={fadeUp} className="max-w-2xl mx-auto flex flex-col items-center">
+            {!showReviewForm && (
+              <button
+                onClick={() => setShowReviewForm(true)}
+                className="bg-dark-red text-silk px-8 py-4 uppercase font-sans text-xs tracking-widest hover:bg-ruby-red hover:shadow-lg transition-all"
+              >
+                Write a Review
+              </button>
+            )}
+
+            <AnimatePresence>
+              {showReviewForm && (
+                <m.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="w-full bg-silk-light/40 border border-silk p-8 md:p-12 relative overflow-hidden mt-8"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-silk rounded-full blur-[80px] -mr-16 -mt-16 opacity-50"></div>
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-ruby-red/5 rounded-full blur-[80px] -ml-16 -mb-16"></div>
+
+                  <div className="flex justify-between items-center mb-6 relative z-10">
+                    <h3 className="font-serif text-dark-red text-2xl">Write a Review</h3>
+                    <button
+                      onClick={() => setShowReviewForm(false)}
+                      className="text-grey-beige hover:text-dark-red transition-colors text-sm uppercase tracking-widest font-sans"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {authStatus === 'authenticated' ? (
+                    <form onSubmit={submitReview} className="flex flex-col gap-6 relative z-10">
+                      <div>
+                        <label className="block text-[10px] font-sans tracking-[0.2em] uppercase text-ruby-red mb-3">Overall Rating</label>
+                        <div className="flex items-center gap-2">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <button
+                              type="button"
+                              key={star}
+                              onClick={() => setReviewRating(star)}
+                              className={`transition-all duration-300 hover:scale-110 ${reviewRating >= star ? 'text-indian-red' : 'text-silk drop-shadow-sm'}`}
+                            >
+                              <Star size={24} fill={reviewRating >= star ? "currentColor" : "currentColor"} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-sans tracking-[0.2em] uppercase text-ruby-red mb-3">Share your experience</label>
+                        <textarea
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          placeholder="What do you love about this product?"
+                          autoComplete="off"
+                          required
+                          rows={4}
+                          className="w-full bg-white border border-silk p-4 font-sans text-sm text-dark-red placeholder:text-grey-beige/50 focus:outline-none focus:border-dark-red transition-colors resize-none shadow-sm"
+                        />
+                      </div>
+                      {reviewFeedback && (
+                        <div className={`p-4 text-xs tracking-widest uppercase font-sans ${reviewFeedback.type === 'error' ? 'bg-indian-red/10 text-indian-red border border-indian-red/20' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                          {reviewFeedback.msg}
+                        </div>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={isSubmittingReview}
+                        className="bg-dark-red text-silk py-4 uppercase font-sans text-xs tracking-widest hover:bg-ruby-red hover:shadow-lg transition-all disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
+                      >
+                        {isSubmittingReview ? <Loader2 size={16} className="animate-spin" /> : null}
+                        Submit Review
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="text-center py-10 bg-white/50 border border-silk/50 relative z-10">
+                      <p className="text-sm font-sans text-dark-red mb-5 italic">Please sign in to share your thoughts about this product.</p>
+                      <button
+                        onClick={() => navigateTo('signin')}
+                        className="inline-flex items-center gap-2 text-xs uppercase font-sans tracking-widest text-dark-red border-b border-dark-red pb-1 hover:text-ruby-red hover:border-ruby-red transition-colors"
+                      >
+                        Sign In to Review <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
+                </m.div>
+              )}
+            </AnimatePresence>
           </m.div>
-        )}
+        </m.div>
 
         {/* Related Products */}
         {related.length > 0 && (

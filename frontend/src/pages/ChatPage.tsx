@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { MessageCircle, Send, Sparkles, Droplets, ShieldCheck } from "lucide-react";
+import { MessageCircle, Send, Sparkles, Droplets, ShieldCheck, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "../components/ProductCard";
 import { useApp } from "../context/AppContext";
 
@@ -173,20 +174,21 @@ export default function ChatPage() {
                 </div>
 
                 {/* Right Column: Interactive Chat Interface */}
-                <div className="w-full lg:w-7/12 flex flex-col h-[650px] bg-white border border-silk shadow-sm rounded-sm overflow-hidden relative">
+                <div className="w-full lg:w-7/12 flex flex-col h-[650px] bg-white border border-silk/60 shadow-xl shadow-silk-dark/10 rounded-2xl overflow-hidden relative">
 
                     {/* Chat Header */}
-                    <div className="px-6 py-5 bg-white border-b border-silk flex items-center justify-between sticky top-0 z-10">
+                    <div className="px-6 py-5 bg-gradient-to-r from-silk-light/40 to-white backdrop-blur-md border-b border-silk/60 flex items-center justify-between sticky top-0 z-10">
                         <div className="flex items-center gap-4">
                             <div className="relative">
-                                <div className="w-12 h-12 bg-silk-light flex items-center justify-center rounded-sm">
+                                <div className="w-12 h-12 bg-silk-light flex items-center justify-center rounded-full border border-silk shadow-sm">
                                     <MessageCircle size={22} className="text-dark-red" />
                                 </div>
-                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-600 border-2 border-white rounded-full"></div>
+                                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
                             </div>
                             <div>
-                                <h2 className="font-serif text-dark-red text-xl">Bodilicious Advisor</h2>
-                                <p className="font-sans text-xs text-gray-500 mt-0.5">
+                                <h2 className="font-serif text-dark-red text-xl font-medium">Bodilicious Advisor</h2>
+                                <p className="font-sans text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>
                                     Online • Replies instantly
                                 </p>
                             </div>
@@ -195,61 +197,92 @@ export default function ChatPage() {
 
                     {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth bg-neutral-50/50">
-                        {messages.map((msg) => {
-                            const isUser = msg.sender === "user";
+                        <AnimatePresence initial={false}>
+                            {messages.map((msg) => {
+                                const isUser = msg.sender === "user";
 
-                            return (
-                                <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                                    {/* Bot Avatar */}
-                                    {!isUser && (
-                                        <div className="w-8 h-8 bg-silk-light flex items-center justify-center shrink-0 mr-3 mt-auto mb-1 rounded-sm border border-silk">
-                                            <Sparkles size={14} className="text-dark-red" />
-                                        </div>
-                                    )}
-
-                                    <div
-                                        className={`max-w-[85%] sm:max-w-[75%] p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 ${isUser
-                                            ? "bg-dark-red text-silk ml-auto rounded-sm rounded-tr-none"
-                                            : "bg-white text-gray-800 border border-silk rounded-sm rounded-tl-none"
-                                            }`}
+                                return (
+                                    <motion.div
+                                        key={msg.id}
+                                        initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        transition={{ duration: 0.3, ease: "easeOut" }}
+                                        className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                                     >
-                                        {isUser ? (
-                                            <p className="whitespace-pre-wrap font-sans font-light tracking-wide">{msg.text}</p>
-                                        ) : (
-                                            <div className="space-y-4 font-sans w-full tracking-wide font-light">
-                                                {renderMarkdown(msg.text)}
-                                                {msg.products && msg.products.length > 0 && (
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 pt-4 border-t border-silk/30">
-                                                        {msg.products.map((p: any, idx: number) => {
-                                                            const productFromApp = allProducts.find(ap => ap.pid === (p.id || p.pid));
-                                                            if (!productFromApp) return null;
-                                                            return (
-                                                                <div key={idx} className="bg-white rounded-sm overflow-hidden border border-silk hover:border-ruby-red/50 transition-colors shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                                                                    <ProductCard product={productFromApp} />
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
+                                        {/* Bot Avatar */}
+                                        {!isUser && (
+                                            <div className="w-8 h-8 bg-silk-light flex items-center justify-center shrink-0 mr-3 mt-auto mb-1 rounded-full border border-silk shadow-sm z-10">
+                                                <Sparkles size={14} className="text-dark-red" />
                                             </div>
                                         )}
-                                    </div>
-                                </div>
-                            );
-                        })}
+
+                                        <div
+                                            className={`max-w-[85%] sm:max-w-[75%] p-5 text-[15px] leading-relaxed shadow-sm transition-all duration-300 relative ${isUser
+                                                ? "bg-gradient-to-br from-dark-red to-ruby-red text-silk ml-auto rounded-2xl rounded-tr-sm shadow-md"
+                                                : "bg-white text-gray-800 border border-silk/80 rounded-2xl rounded-tl-sm shadow-md"
+                                                }`}
+                                        >
+                                            {isUser ? (
+                                                <p className="whitespace-pre-wrap font-sans font-light tracking-wide">{msg.text}</p>
+                                            ) : (
+                                                <div className="space-y-4 font-sans w-full tracking-wide font-light">
+                                                    {renderMarkdown(msg.text)}
+                                                    {msg.products && msg.products.length > 0 && (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 pt-4 border-t border-silk/30">
+                                                            {msg.products.map((p: any, idx: number) => {
+                                                                const productFromApp = allProducts.find(ap => ap.pid === (p.id || p.pid));
+                                                                if (!productFromApp) return null;
+                                                                return (
+                                                                    <div key={idx} className="bg-white rounded-xl overflow-hidden border border-silk/60 hover:border-ruby-red/50 transition-colors shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
+                                                                        <ProductCard product={productFromApp} />
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* User Avatar */}
+                                        {isUser && (
+                                            <div className="w-8 h-8 bg-silk-dark flex items-center justify-center shrink-0 ml-3 mt-auto mb-1 rounded-full border border-silk shadow-sm z-10">
+                                                <User size={14} className="text-white" />
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
 
                         {/* Typing Indicator */}
                         {isLoading && (
-                            <div className="flex justify-start items-end">
-                                <div className="w-8 h-8 bg-silk-light flex items-center justify-center shrink-0 mr-3 mb-1 rounded-sm border border-silk">
+                            <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                className="flex justify-start items-end"
+                            >
+                                <div className="w-8 h-8 bg-silk-light flex items-center justify-center shrink-0 mr-3 mb-1 rounded-full border border-silk shadow-sm z-10">
                                     <Sparkles size={14} className="text-dark-red" />
                                 </div>
-                                <div className="bg-white border border-silk shadow-sm rounded-sm rounded-tl-none p-5 w-auto flex items-center justify-center gap-1.5">
-                                    <div className="w-2 h-2 bg-ruby-red/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                                    <div className="w-2 h-2 bg-ruby-red/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                                    <div className="w-2 h-2 bg-ruby-red/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                                <div className="bg-white border border-silk/80 shadow-md rounded-2xl rounded-tl-sm p-4 w-auto flex items-center justify-center gap-1.5 h-[52px]">
+                                    <motion.div
+                                        className="w-2 h-2 bg-ruby-red/70 rounded-full"
+                                        animate={{ y: [0, -5, 0], opacity: [0.5, 1, 0.5] }}
+                                        transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+                                    />
+                                    <motion.div
+                                        className="w-2 h-2 bg-ruby-red/70 rounded-full"
+                                        animate={{ y: [0, -5, 0], opacity: [0.5, 1, 0.5] }}
+                                        transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut", delay: 0.15 }}
+                                    />
+                                    <motion.div
+                                        className="w-2 h-2 bg-ruby-red/70 rounded-full"
+                                        animate={{ y: [0, -5, 0], opacity: [0.5, 1, 0.5] }}
+                                        transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                                    />
                                 </div>
-                            </div>
+                            </motion.div>
                         )}
                         <div ref={messagesEndRef} />
                     </div>
@@ -261,22 +294,24 @@ export default function ChatPage() {
                         {!isLoading && (
                             <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide snap-x">
                                 {SUGGESTIONS.map((suggestion) => (
-                                    <button
+                                    <motion.button
                                         key={suggestion}
                                         onClick={() => handleSendMessage(suggestion)}
-                                        className="snap-start whitespace-nowrap px-4 py-2 rounded-sm border border-silk text-dark-red font-sans text-xs hover:bg-silk-light transition-all duration-300"
+                                        whileHover={{ scale: 1.03 }}
+                                        whileTap={{ scale: 0.97 }}
+                                        className="snap-start whitespace-nowrap px-5 py-2.5 rounded-full border border-silk/80 bg-white shadow-sm text-dark-red font-sans text-xs font-medium hover:bg-silk-light hover:border-silk hover:shadow-md transition-all duration-300"
                                     >
                                         {suggestion}
-                                    </button>
+                                    </motion.button>
                                 ))}
                             </div>
                         )}
 
                         {/* Input Box */}
-                        <div className="relative flex items-center bg-neutral-50 border border-silk rounded-sm focus-within:border-dark-red transition-all duration-300">
+                        <div className="relative flex items-center bg-white border border-silk rounded-full shadow-sm focus-within:border-ruby-red focus-within:ring-4 focus-within:ring-ruby-red/10 focus-within:shadow-md transition-all duration-300 p-1.5">
                             <input
                                 type="text"
-                                className="flex-1 bg-transparent px-5 py-4 text-[15px] focus:outline-none font-sans text-gray-800 placeholder:text-gray-400 font-light tracking-wide w-full rounded-sm"
+                                className="flex-1 bg-transparent px-5 py-3 text-[15px] focus:outline-none font-sans text-gray-800 placeholder:text-gray-400 font-light tracking-wide w-full"
                                 placeholder="Type your skin concern..."
                                 value={inputMessage}
                                 onChange={(e) => setInputMessage(e.target.value)}
@@ -286,7 +321,7 @@ export default function ChatPage() {
                             <button
                                 onClick={() => handleSendMessage()}
                                 disabled={!inputMessage.trim() || isLoading}
-                                className="bg-dark-red text-silk px-6 py-4 flex items-center justify-center hover:bg-ruby-red disabled:opacity-50 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-300 rounded-r-sm focus:outline-none"
+                                className="bg-gradient-to-r from-dark-red to-ruby-red text-silk h-12 px-7 flex items-center justify-center font-medium hover:opacity-90 disabled:opacity-50 disabled:bg-gray-300 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed transition-all duration-300 rounded-full shadow-sm focus:outline-none"
                                 aria-label="Send message"
                             >
                                 Send <Send size={16} className="ml-2 hidden sm:block" />
@@ -297,26 +332,7 @@ export default function ChatPage() {
                 </div>
             </div>
 
-            {/* FAQ Section */}
-            <div id="faq" className="max-w-6xl mx-auto w-full px-6 mt-24 pt-12 border-t border-silk/50 pb-8">
-                <div className="text-center mb-16">
-                    <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-ruby-red mb-4">Queries</p>
-                    <h2 className="font-serif text-3xl lg:text-4xl text-dark-red">Frequently Asked Questions</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-                    {[
-                        { q: "How long until I see results?", a: "Our botanical formulations are potent yet gentle. While some experience an immediate glow, optimal results typically reveal themselves within 28 days of consistent ritual use." },
-                        { q: "Are your products cruelty-free?", a: "Absolutely. We hold a deep reverence for all living beings. Bodilicious products are rigorously formulated without animal testing." },
-                        { q: "Can the Advisor help with sensitive skin?", a: "Yes. Our AI Beauty Advisor is trained to recognize sensitive skin profiles and will strictly recommend soothing, non-reactive rituals tailored for delicate barriers." },
-                        { q: "Is the AI consultation free?", a: "Yes. The Bodilicious Advisor is a complimentary service designed to help you discover your perfect glow without any upfront commitment." },
-                    ].map((faq, idx) => (
-                        <div key={idx} className="bg-white p-8 border border-silk shadow-sm rounded-sm hover:border-ruby-red/50 transition-colors duration-300">
-                            <h3 className="font-serif text-lg text-dark-red mb-3">{faq.q}</h3>
-                            <p className="font-sans text-gray-600 text-sm leading-relaxed font-light">{faq.a}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
+
         </div>
     );
 }

@@ -16,9 +16,11 @@ import ShippingPage from './pages/ShippingPage';
 import ChatPage from './pages/ChatPage';
 import ConfirmationPage from './pages/ConfirmationPage';
 import GenericStaticPage from './pages/GenericStaticPage';
+import ContactPage from './pages/ContactPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import ShippingRefundPage from './pages/ShippingRefundPage';
+import AboutPage from './pages/AboutPage';
 import PageTransition from './components/PageTransition';
 
 function AppRoutes() {
@@ -45,7 +47,7 @@ function AppRoutes() {
           <Route path="/confirmation" element={<PageTransition><ConfirmationPage /></PageTransition>} />
 
           {/* Static Pages */}
-          <Route path="/contact" element={<PageTransition><GenericStaticPage /></PageTransition>} />
+          <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
           <Route path="/faqs" element={<PageTransition><GenericStaticPage /></PageTransition>} />
           <Route path="/stores" element={<PageTransition><GenericStaticPage /></PageTransition>} />
           <Route path="/accessibility" element={<PageTransition><GenericStaticPage /></PageTransition>} />
@@ -56,6 +58,7 @@ function AppRoutes() {
           <Route path="/privacy" element={<PageTransition><PrivacyPage /></PageTransition>} />
           <Route path="/terms" element={<PageTransition><TermsPage /></PageTransition>} />
           <Route path="/shipping-refund" element={<PageTransition><ShippingRefundPage /></PageTransition>} />
+          <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
           <Route path="/students" element={<PageTransition><GenericStaticPage /></PageTransition>} />
         </Routes>
       </AnimatePresence>

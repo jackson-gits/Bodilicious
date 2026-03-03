@@ -57,7 +57,7 @@ export default function Footer() {
               {[
                 { label: 'Contact Us', path: '/contact' },
                 { label: 'Shipping & Returns', path: '/tracking' },
-                { label: 'FAQs', path: '/chat#faq' }
+                { label: 'FAQs', path: '/#faq' }
               ].map(item => (
                 <li key={item.label}>
                   <Link to={item.path} className="text-sm font-sans flex items-center w-fit text-grey-beige hover:text-ruby-red hover:translate-x-1 transition-all duration-300 tracking-wide">
@@ -77,6 +77,7 @@ export default function Footer() {
                 { label: 'Privacy Policy', path: '/privacy' },
                 { label: 'Terms & Conditions', path: '/terms' },
                 { label: 'Shipping & Refund Policy', path: '/shipping-refund' },
+                { label: 'About Us', path: '/about' },
                 { label: 'Brand Story', path: '/careers' },
                 { label: 'Offers', path: '/students' },
               ].map(item => (
